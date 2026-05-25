@@ -58,5 +58,4 @@
         android:layout_height="32dp"
         android:src="@drawable/ic_more"
         android:padding="6dp"
-        android:colorFilter="@color/text_dim"/>
 </LinearLayout>

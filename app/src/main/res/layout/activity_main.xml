@@ -75,7 +75,6 @@
             android:layout_height="36dp"
             android:src="@drawable/ic_play"
             android:padding="4dp"
-            android:colorFilter="@color/green"/>
 
         <ImageView
             android:id="@+id/mini_next"
@@ -83,7 +82,6 @@
             android:layout_height="36dp"
             android:src="@drawable/ic_skip_next"
             android:padding="4dp"
-            android:colorFilter="@color/text_dim"
             android:layout_marginStart="4dp"/>
     </LinearLayout>
 
