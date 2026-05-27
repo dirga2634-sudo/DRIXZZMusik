@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg">
@@ -17,12 +18,14 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="16dp">
+
             <ImageView
                 android:id="@+id/btn_back"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:src="@drawable/ic_arrow_down"
-                android:padding="4dp"
+                android:padding="4dp"/>
+
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -32,7 +35,10 @@
                 android:textStyle="bold"
                 android:textColor="@color/text"
                 android:gravity="center"/>
-            <View android:layout_width="36dp" android:layout_height="36dp"/>
+
+            <View
+                android:layout_width="36dp"
+                android:layout_height="36dp"/>
         </LinearLayout>
 
         <!-- Album Art -->
@@ -46,18 +52,20 @@
             android:background="@drawable/bg_album_art"
             android:layout_marginBottom="24dp"/>
 
-        <!-- Title & Favorite -->
+        <!-- Title and Favorite -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:layout_marginBottom="4dp">
+
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
+
                 <TextView
                     android:id="@+id/tv_title"
                     android:layout_width="match_parent"
@@ -68,6 +76,7 @@
                     android:textColor="@color/text"
                     android:maxLines="2"
                     android:ellipsize="end"/>
+
                 <TextView
                     android:id="@+id/tv_artist"
                     android:layout_width="match_parent"
@@ -76,12 +85,13 @@
                     android:textSize="13sp"
                     android:textColor="@color/text_dim"/>
             </LinearLayout>
+
             <ImageView
                 android:id="@+id/btn_favorite"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:src="@drawable/ic_heart"
-                android:padding="4dp"
+                android:padding="4dp"/>
         </LinearLayout>
 
         <!-- Seekbar -->
@@ -98,6 +108,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginBottom="16dp">
+
             <TextView
                 android:id="@+id/tv_current"
                 android:layout_width="0dp"
@@ -106,6 +117,7 @@
                 android:text="0:00"
                 android:textSize="11sp"
                 android:textColor="@color/text_dim"/>
+
             <TextView
                 android:id="@+id/tv_duration"
                 android:layout_width="wrap_content"
@@ -122,12 +134,14 @@
             android:orientation="horizontal"
             android:gravity="center"
             android:layout_marginBottom="16dp">
+
             <ImageView
                 android:id="@+id/btn_prev"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@drawable/ic_skip_prev"
-                android:padding="8dp"
+                android:padding="8dp"/>
+
             <ImageView
                 android:id="@+id/btn_play_pause"
                 android:layout_width="64dp"
@@ -137,12 +151,13 @@
                 android:background="@drawable/bg_play_btn"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"/>
+
             <ImageView
                 android:id="@+id/btn_next"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@drawable/ic_skip_next"
-                android:padding="8dp"
+                android:padding="8dp"/>
         </LinearLayout>
 
         <!-- Extra buttons -->
@@ -152,6 +167,7 @@
             android:orientation="horizontal"
             android:gravity="center"
             android:layout_marginBottom="16dp">
+
             <ImageView
                 android:id="@+id/btn_lyrics"
                 android:layout_width="40dp"
@@ -160,6 +176,7 @@
                 android:padding="8dp"
                 android:alpha="0.5"
                 android:layout_marginEnd="24dp"/>
+
             <ImageView
                 android:id="@+id/btn_eq"
                 android:layout_width="40dp"
@@ -178,13 +195,14 @@
             android:visibility="gone"
             app:cardBackgroundColor="@color/surface"
             app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            app:cardElevation="0dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -194,6 +212,7 @@
                     android:textStyle="bold"
                     android:letterSpacing="0.1"
                     android:layout_marginBottom="8dp"/>
+
                 <TextView
                     android:id="@+id/tv_lyrics"
                     android:layout_width="match_parent"
@@ -214,8 +233,8 @@
             android:visibility="gone"
             app:cardBackgroundColor="@color/surface"
             app:cardCornerRadius="14dp"
-            app:cardElevation="0dp"
-            xmlns:app="http://schemas.android.com/apk/res-auto">
+            app:cardElevation="0dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -238,30 +257,87 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:layout_marginBottom="12dp">
-                    <TextView android:id="@+id/btn_eq_flat" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" android:text="Flat" android:gravity="center" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/text" android:background="@drawable/bg_btn_outline_green" android:layout_margin="3dp"/>
-                    <TextView android:id="@+id/btn_eq_bass" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" android:text="Bass" android:gravity="center" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/text" android:background="@drawable/bg_btn_outline_green" android:layout_margin="3dp"/>
-                    <TextView android:id="@+id/btn_eq_pop" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" android:text="Pop" android:gravity="center" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/text" android:background="@drawable/bg_btn_outline_green" android:layout_margin="3dp"/>
-                    <TextView android:id="@+id/btn_eq_rock" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1" android:text="Rock" android:gravity="center" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/text" android:background="@drawable/bg_btn_outline_green" android:layout_margin="3dp"/>
+
+                    <TextView
+                        android:id="@+id/btn_eq_flat"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:text="Flat"
+                        android:gravity="center"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:background="@drawable/bg_btn_outline_green"
+                        android:layout_margin="3dp"/>
+
+                    <TextView
+                        android:id="@+id/btn_eq_bass"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:text="Bass"
+                        android:gravity="center"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:background="@drawable/bg_btn_outline_green"
+                        android:layout_margin="3dp"/>
+
+                    <TextView
+                        android:id="@+id/btn_eq_pop"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:text="Pop"
+                        android:gravity="center"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:background="@drawable/bg_btn_outline_green"
+                        android:layout_margin="3dp"/>
+
+                    <TextView
+                        android:id="@+id/btn_eq_rock"
+                        android:layout_width="0dp"
+                        android:layout_height="32dp"
+                        android:layout_weight="1"
+                        android:text="Rock"
+                        android:gravity="center"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:background="@drawable/bg_btn_outline_green"
+                        android:layout_margin="3dp"/>
                 </LinearLayout>
 
                 <!-- EQ Bands -->
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
                     <LinearLayout android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
                         <SeekBar android:id="@+id/eq_60hz" android:layout_width="100dp" android:layout_height="wrap_content" android:rotation="270" android:progressTint="@color/green" android:thumbTint="@color/green"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="60Hz" android:textSize="9sp" android:textColor="@color/text_dim" android:layout_marginTop="4dp"/>
                     </LinearLayout>
+
                     <LinearLayout android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
                         <SeekBar android:id="@+id/eq_230hz" android:layout_width="100dp" android:layout_height="wrap_content" android:rotation="270" android:progressTint="@color/green" android:thumbTint="@color/green"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="230Hz" android:textSize="9sp" android:textColor="@color/text_dim" android:layout_marginTop="4dp"/>
                     </LinearLayout>
+
                     <LinearLayout android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
                         <SeekBar android:id="@+id/eq_910hz" android:layout_width="100dp" android:layout_height="wrap_content" android:rotation="270" android:progressTint="@color/green" android:thumbTint="@color/green"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="910Hz" android:textSize="9sp" android:textColor="@color/text_dim" android:layout_marginTop="4dp"/>
                     </LinearLayout>
+
                     <LinearLayout android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
                         <SeekBar android:id="@+id/eq_4khz" android:layout_width="100dp" android:layout_height="wrap_content" android:rotation="270" android:progressTint="@color/green" android:thumbTint="@color/green"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="4kHz" android:textSize="9sp" android:textColor="@color/text_dim" android:layout_marginTop="4dp"/>
                     </LinearLayout>
+
                     <LinearLayout android:layout_width="0dp" android:layout_height="120dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
                         <SeekBar android:id="@+id/eq_14khz" android:layout_width="100dp" android:layout_height="wrap_content" android:rotation="270" android:progressTint="@color/green" android:thumbTint="@color/green"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="14kHz" android:textSize="9sp" android:textColor="@color/text_dim" android:layout_marginTop="4dp"/>
@@ -269,10 +345,38 @@
                 </LinearLayout>
 
                 <!-- Bass Boost -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Bass Boost" android:textSize="12sp" android:textColor="@color/green" android:textStyle="bold" android:layout_marginTop="12dp" android:layout_marginBottom="4dp"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                    <SeekBar android:id="@+id/seek_bass" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:progressTint="@color/green" android:thumbTint="@color/green"/>
-                    <TextView android:id="@+id/tv_bass_value" android:layout_width="40dp" android:layout_height="wrap_content" android:text="0%" android:textSize="11sp" android:textColor="@color/text_dim" android:gravity="end"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Bass Boost"
+                    android:textSize="12sp"
+                    android:textColor="@color/green"
+                    android:textStyle="bold"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="4dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <SeekBar
+                        android:id="@+id/seek_bass"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:progressTint="@color/green"
+                        android:thumbTint="@color/green"/>
+
+                    <TextView
+                        android:id="@+id/tv_bass_value"
+                        android:layout_width="40dp"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_dim"
+                        android:gravity="end"/>
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
