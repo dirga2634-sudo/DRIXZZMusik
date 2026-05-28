@@ -43,7 +43,6 @@ public class HomeFragment extends Fragment {
 
         binding.rvTrending.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvTrending.setAdapter(adapter);
-
         loadTrending();
         return binding.getRoot();
     }
@@ -52,53 +51,58 @@ public class HomeFragment extends Fragment {
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.rvTrending.setVisibility(View.GONE);
 
-        MusicApi.getTrending((songList) -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.rvTrending.setVisibility(View.VISIBLE);
-                songs = songList;
-                adapter.setData(songList);
-                binding.tvSongCount.setText(songList.size() + " lagu trending");
-            });
-        }, error -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.tvSongCount.setText("Gagal memuat: " + error);
-                // Load demo songs
-                loadDemoSongs();
-            });
+        MusicApi.getTrending(new MusicApi.ApiCallback() {
+            @Override
+            public void onSuccess(List<Song> songList) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.rvTrending.setVisibility(View.VISIBLE);
+                    songs = songList;
+                    adapter.setData(songList);
+                    binding.tvSongCount.setText(songList.size() + " lagu trending");
+                });
+            }
+            @Override
+            public void onError(String message) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    binding.tvSongCount.setText("Gagal: " + message);
+                    loadDemoSongs();
+                });
+            }
         });
     }
 
     private void loadDemoSongs() {
         songs = new ArrayList<>();
-        songs.add(new Song("demo1", "Tes Koneksi Internet", "Pastikan internet aktif", "",
-            "0:00", "", ""));
-        songs.add(new Song("demo2", "Coba Search Lagu", "Gunakan tab Search", "",
-            "0:00", "", ""));
+        songs.add(new Song("demo1", "Pastikan internet aktif", "Coba lagi", "", "0:00", "", ""));
+        songs.add(new Song("demo2", "Gunakan tab Search", "Cari lagu favorit", "", "0:00", "", ""));
         adapter.setData(songs);
         binding.rvTrending.setVisibility(View.VISIBLE);
     }
 
     private void playSong(Song song, int index) {
-        if (song.streamUrl.isEmpty()) {
-            // Perlu fetch stream URL dulu
+        if (song.streamUrl == null || song.streamUrl.isEmpty()) {
             binding.progressBar.setVisibility(View.VISIBLE);
-            MusicApi.getStreamUrl(song.id, s -> {
-                requireActivity().runOnUiThread(() -> {
-                    binding.progressBar.setVisibility(View.GONE);
-                    // Update song in list
-                    songs.set(index, s);
-                    MusicManager.getInstance().playQueue(songs, index);
-                    if (getActivity() instanceof MainActivity) {
-                        ((MainActivity) getActivity()).showPlayer();
-                    }
-                });
-            }, error -> {
-                requireActivity().runOnUiThread(() -> {
-                    binding.progressBar.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(), "Gagal: " + error, Toast.LENGTH_SHORT).show();
-                });
+            MusicApi.getStreamUrl(song.id, new MusicApi.SongCallback() {
+                @Override
+                public void onSuccess(Song s) {
+                    requireActivity().runOnUiThread(() -> {
+                        binding.progressBar.setVisibility(View.GONE);
+                        songs.set(index, s);
+                        MusicManager.getInstance().playQueue(songs, index);
+                        if (getActivity() instanceof MainActivity) {
+                            ((MainActivity) getActivity()).showPlayer();
+                        }
+                    });
+                }
+                @Override
+                public void onError(String message) {
+                    requireActivity().runOnUiThread(() -> {
+                        binding.progressBar.setVisibility(View.GONE);
+                        Toast.makeText(requireContext(), "Gagal: " + message, Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
         } else {
             MusicManager.getInstance().playQueue(songs, index);
@@ -109,45 +113,17 @@ public class HomeFragment extends Fragment {
     }
 
     private void showSongMenu(Song song) {
-        String[] options = {"Tambah ke Favorites", "Tambah ke Playlist", "Bagikan"};
+        String[] options = {"Tambah ke Favorites", "Tambah ke Playlist"};
         new MaterialAlertDialogBuilder(requireContext())
             .setTitle(song.title)
             .setItems(options, (d, w) -> {
-                switch (w) {
-                    case 0:
-                        MusicManager.getInstance().toggleFavorite(song);
-                        boolean fav = MusicManager.getInstance().isFavorite(song.id);
-                        Toast.makeText(requireContext(),
-                            fav ? "Ditambah ke Favorites" : "Dihapus dari Favorites",
-                            Toast.LENGTH_SHORT).show();
-                        break;
-                    case 1:
-                        showPlaylistDialog(song);
-                        break;
+                if (w == 0) {
+                    MusicManager.getInstance().toggleFavorite(song);
+                    boolean fav = MusicManager.getInstance().isFavorite(song.id);
+                    Toast.makeText(requireContext(),
+                        fav ? "Ditambah ke Favorites" : "Dihapus dari Favorites",
+                        Toast.LENGTH_SHORT).show();
                 }
-            }).show();
-    }
-
-    private void showPlaylistDialog(Song song) {
-        List<com.drizzx.musik.model.Playlist> playlists = MusicManager.getInstance().getPlaylists();
-        if (playlists.isEmpty()) {
-            new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Belum ada playlist")
-                .setMessage("Buat playlist baru?")
-                .setPositiveButton("Buat", (d, w) -> {
-                    // Open library to create playlist
-                    Toast.makeText(requireContext(), "Buka tab Library untuk membuat playlist", Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton("Batal", null)
-                .show();
-            return;
-        }
-        String[] names = playlists.stream().map(p -> p.name).toArray(String[]::new);
-        new MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Pilih Playlist")
-            .setItems(names, (d, w) -> {
-                MusicManager.getInstance().addToPlaylist(playlists.get(w).id, song);
-                Toast.makeText(requireContext(), "Ditambahkan ke " + playlists.get(w).name, Toast.LENGTH_SHORT).show();
             }).show();
     }
 

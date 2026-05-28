@@ -49,15 +49,11 @@ public class SearchFragment extends Fragment {
         binding.rvResults.setAdapter(adapter);
 
         binding.etSearch.setOnEditorActionListener((v, actionId, e) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                doSearch();
-                return true;
-            }
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) { doSearch(); return true; }
             return false;
         });
 
         binding.btnSearch.setOnClickListener(v -> doSearch());
-
         return binding.getRoot();
     }
 
@@ -72,44 +68,54 @@ public class SearchFragment extends Fragment {
         binding.rvResults.setVisibility(View.GONE);
         binding.tvEmpty.setVisibility(View.GONE);
 
-        MusicApi.search(query, songs -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                if (songs.isEmpty()) {
+        MusicApi.search(query, new MusicApi.ApiCallback() {
+            @Override
+            public void onSuccess(List<Song> songs) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    if (songs.isEmpty()) {
+                        binding.tvEmpty.setVisibility(View.VISIBLE);
+                        binding.tvEmpty.setText("Lagu tidak ditemukan");
+                    } else {
+                        results = songs;
+                        adapter.setData(songs);
+                        binding.rvResults.setVisibility(View.VISIBLE);
+                        binding.tvResultCount.setText(songs.size() + " hasil ditemukan");
+                    }
+                });
+            }
+            @Override
+            public void onError(String message) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
                     binding.tvEmpty.setVisibility(View.VISIBLE);
-                    binding.tvEmpty.setText("Lagu tidak ditemukan");
-                } else {
-                    results = songs;
-                    adapter.setData(songs);
-                    binding.rvResults.setVisibility(View.VISIBLE);
-                    binding.tvResultCount.setText(songs.size() + " hasil ditemukan");
-                }
-            });
-        }, error -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                binding.tvEmpty.setVisibility(View.VISIBLE);
-                binding.tvEmpty.setText("Error: " + error);
-            });
+                    binding.tvEmpty.setText("Error: " + message);
+                });
+            }
         });
     }
 
     private void playFromSearch(Song song, int index) {
         binding.progressBar.setVisibility(View.VISIBLE);
-        MusicApi.getStreamUrl(song.id, s -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                results.set(index, s);
-                MusicManager.getInstance().playQueue(results, index);
-                if (getActivity() instanceof MainActivity) {
-                    ((MainActivity) getActivity()).showPlayer();
-                }
-            });
-        }, error -> {
-            requireActivity().runOnUiThread(() -> {
-                binding.progressBar.setVisibility(View.GONE);
-                Toast.makeText(requireContext(), "Gagal: " + error, Toast.LENGTH_SHORT).show();
-            });
+        MusicApi.getStreamUrl(song.id, new MusicApi.SongCallback() {
+            @Override
+            public void onSuccess(Song s) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    results.set(index, s);
+                    MusicManager.getInstance().playQueue(results, index);
+                    if (getActivity() instanceof MainActivity) {
+                        ((MainActivity) getActivity()).showPlayer();
+                    }
+                });
+            }
+            @Override
+            public void onError(String message) {
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    Toast.makeText(requireContext(), "Gagal: " + message, Toast.LENGTH_SHORT).show();
+                });
+            }
         });
     }
 
