@@ -5,26 +5,25 @@
     android:orientation="vertical"
     android:background="@color/bg">
 
-    <!-- Fragment container -->
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- Mini Player Spotify style -->
+    <!-- Mini Player - Spotify style: dark bg, lagu + artis + tombol -->
     <LinearLayout
         android:id="@+id/mini_player"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="@color/mini_player_bg"
+        android:background="@color/surface3"
         android:visibility="gone"
         android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginBottom="4dp">
 
-        <!-- Progress bar tipis di atas -->
+        <!-- Progress line tipis -->
         <ProgressBar
             android:id="@+id/mini_progress"
             style="?android:attr/progressBarStyleHorizontal"
@@ -40,9 +39,8 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp">
+            android:paddingEnd="8dp">
 
-            <!-- Thumbnail -->
             <ImageView
                 android:id="@+id/mini_thumbnail"
                 android:layout_width="44dp"
@@ -51,15 +49,12 @@
                 android:scaleType="centerCrop"
                 android:background="@drawable/bg_thumbnail"/>
 
-            <!-- Title + Artist -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
-                android:layout_marginStart="12dp"
-                android:layout_marginEnd="8dp">
-
+                android:layout_marginStart="12dp">
                 <TextView
                     android:id="@+id/mini_title"
                     android:layout_width="match_parent"
@@ -70,7 +65,6 @@
                     android:textColor="@color/text"
                     android:maxLines="1"
                     android:ellipsize="end"/>
-
                 <TextView
                     android:id="@+id/mini_artist"
                     android:layout_width="match_parent"
@@ -82,22 +76,21 @@
                     android:ellipsize="end"/>
             </LinearLayout>
 
-            <!-- Heart button -->
+            <!-- Like -->
             <ImageView
                 android:id="@+id/mini_like"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:src="@drawable/ic_heart"
-                android:padding="6dp"
-                android:layout_marginEnd="4dp"/>
+                android:padding="6dp"/>
 
             <!-- Play/Pause -->
             <ImageView
                 android:id="@+id/mini_play_pause"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_play"
-                android:padding="4dp"/>
+                android:padding="8dp"/>
 
             <!-- Next -->
             <ImageView
@@ -105,90 +98,31 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:src="@drawable/ic_skip_next"
-                android:padding="6dp"
-                android:layout_marginStart="4dp"/>
+                android:padding="6dp"/>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom nav - 3 item Spotify style -->
     <LinearLayout
         android:id="@+id/bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="58dp"
+        android:layout_height="60dp"
         android:orientation="horizontal"
-        android:background="@color/nav_bg"
-        android:paddingTop="4dp">
+        android:background="@color/nav_bg">
 
-        <!-- Home -->
-        <LinearLayout
-            android:id="@+id/nav_home"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center">
-            <ImageView
-                android:id="@+id/nav_icon_home"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_home"/>
-            <TextView
-                android:id="@+id/nav_text_home"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Home"
-                android:textSize="10sp"
-                android:textColor="@color/green"
-                android:textStyle="bold"
-                android:layout_marginTop="3dp"/>
+        <LinearLayout android:id="@+id/nav_home" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:paddingTop="6dp">
+            <ImageView android:id="@+id/nav_icon_home" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_home"/>
+            <TextView android:id="@+id/nav_text_home" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Home" android:textSize="10sp" android:textColor="@color/green" android:textStyle="bold" android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- Search -->
-        <LinearLayout
-            android:id="@+id/nav_search"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center">
-            <ImageView
-                android:id="@+id/nav_icon_search"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_search"/>
-            <TextView
-                android:id="@+id/nav_text_search"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Search"
-                android:textSize="10sp"
-                android:textColor="@color/text_dim"
-                android:textStyle="bold"
-                android:layout_marginTop="3dp"/>
+        <LinearLayout android:id="@+id/nav_search" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:paddingTop="6dp">
+            <ImageView android:id="@+id/nav_icon_search" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_search"/>
+            <TextView android:id="@+id/nav_text_search" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cari" android:textSize="10sp" android:textColor="@color/text_dim" android:textStyle="bold" android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- Library -->
-        <LinearLayout
-            android:id="@+id/nav_library"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center">
-            <ImageView
-                android:id="@+id/nav_icon_library"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_library"/>
-            <TextView
-                android:id="@+id/nav_text_library"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Library"
-                android:textSize="10sp"
-                android:textColor="@color/text_dim"
-                android:textStyle="bold"
-                android:layout_marginTop="3dp"/>
+        <LinearLayout android:id="@+id/nav_library" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:paddingTop="6dp">
+            <ImageView android:id="@+id/nav_icon_library" android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_library"/>
+            <TextView android:id="@+id/nav_text_library" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Koleksi" android:textSize="10sp" android:textColor="@color/text_dim" android:textStyle="bold" android:layout_marginTop="2dp"/>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

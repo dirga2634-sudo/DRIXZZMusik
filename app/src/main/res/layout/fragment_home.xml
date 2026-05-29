@@ -5,90 +5,108 @@
     android:orientation="vertical"
     android:background="@color/bg">
 
-    <!-- Header: Greeting + Refresh -->
+    <!-- Top bar: Avatar + Filter pills -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="20dp"
-        android:paddingBottom="16dp">
+        android:paddingEnd="16dp">
 
-        <LinearLayout
+        <!-- Avatar -->
+        <TextView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:text="D"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/bg"
+            android:gravity="center"
+            android:background="@drawable/bg_avatar"
+            android:layout_marginEnd="12dp"/>
+
+        <!-- Filter pills -->
+        <HorizontalScrollView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
+            android:scrollbars="none">
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Selamat Datang"
-                android:textSize="13sp"
-                android:textColor="@color/text_dim"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Drizzx Musik"
-                android:textSize="26sp"
-                android:textStyle="bold"
-                android:textColor="@color/green"/>
-        </LinearLayout>
-
-        <!-- Refresh icon -->
-        <ImageView
-            android:id="@+id/btn_refresh"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_music_placeholder"
-            android:padding="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"/>
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/pill_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Semua"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/bg"
+                    android:gravity="center"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_btn_green"
+                    android:layout_marginEnd="8dp"/>
+                <TextView
+                    android:id="@+id/pill_music"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="Musik"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text"
+                    android:gravity="center"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:background="@drawable/bg_pill_dark"/>
+            </LinearLayout>
+        </HorizontalScrollView>
     </LinearLayout>
 
     <!-- Loading -->
     <ProgressBar
         android:id="@+id/progress_bar"
-        style="?android:attr/progressBarStyleSmall"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:indeterminateTint="@color/green"
+        android:layout_marginTop="48dp"
         android:visibility="visible"/>
 
-    <!-- Error / retry state -->
+    <!-- Error state -->
     <LinearLayout
         android:id="@+id/layout_error"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
-        android:padding="40dp"
+        android:padding="32dp"
         android:visibility="gone">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Tidak ada koneksi internet"
+            android:text="Gagal memuat"
             android:textColor="@color/text_dim"
-            android:textSize="14sp"
-            android:gravity="center"/>
+            android:textSize="14sp"/>
         <TextView
             android:id="@+id/btn_retry"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="36dp"
             android:text="Coba Lagi"
-            android:textColor="@color/bg"
-            android:textSize="14sp"
+            android:textColor="@color/text"
             android:textStyle="bold"
-            android:layout_marginTop="16dp"
-            android:paddingStart="28dp"
-            android:paddingEnd="28dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
-            android:background="@drawable/bg_btn_green"/>
+            android:textSize="13sp"
+            android:gravity="center"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:background="@drawable/bg_btn_green"
+            android:layout_marginTop="12dp"/>
     </LinearLayout>
 
-    <!-- Trending label + count -->
+    <!-- Content: header info + list -->
     <LinearLayout
         android:id="@+id/layout_trending_header"
         android:layout_width="match_parent"
@@ -103,8 +121,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Trending Sekarang 🔥"
-            android:textSize="18sp"
+            android:text="Trending Musik"
+            android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="@color/text"/>
         <TextView
@@ -115,7 +133,12 @@
             android:textColor="@color/text_dim"/>
     </LinearLayout>
 
-    <!-- Song list -->
+    <!-- Refresh -->
+    <ImageView
+        android:id="@+id/btn_refresh"
+        android:layout_width="0dp"
+        android:layout_height="0dp"/>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_trending"
         android:layout_width="match_parent"
@@ -123,5 +146,4 @@
         android:clipToPadding="false"
         android:paddingBottom="8dp"
         android:visibility="gone"/>
-
 </LinearLayout>

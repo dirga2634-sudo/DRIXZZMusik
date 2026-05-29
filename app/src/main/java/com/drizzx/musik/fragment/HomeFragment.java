@@ -25,14 +25,16 @@ public class HomeFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+
         adapter = new SongAdapter(new SongAdapter.OnClick() {
             @Override public void onClick(Song song, int index) { playSong(song, index); }
-            @Override public void onMore(Song song) { showSongMenu(song); }
+            @Override public void onMore(Song song) { showMenu(song); }
         });
+
         binding.rvTrending.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvTrending.setAdapter(adapter);
-        binding.btnRefresh.setOnClickListener(v -> loadTrending());
         binding.btnRetry.setOnClickListener(v -> loadTrending());
+
         loadTrending();
         return binding.getRoot();
     }
@@ -45,19 +47,19 @@ public class HomeFragment extends Fragment {
         binding.layoutTrendingHeader.setVisibility(View.GONE);
 
         MusicApi.getTrending(new MusicApi.ApiCallback() {
-            @Override public void onSuccess(List<Song> songList) {
+            @Override public void onSuccess(List<Song> list) {
                 if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
                     binding.layoutError.setVisibility(View.GONE);
                     binding.layoutTrendingHeader.setVisibility(View.VISIBLE);
                     binding.rvTrending.setVisibility(View.VISIBLE);
-                    songs = songList;
-                    adapter.setData(songList);
-                    binding.tvSongCount.setText(songList.size() + " lagu");
+                    songs = list;
+                    adapter.setData(list);
+                    binding.tvSongCount.setText(list.size() + " lagu");
                 });
             }
-            @Override public void onError(String message) {
+            @Override public void onError(String msg) {
                 if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
@@ -70,43 +72,38 @@ public class HomeFragment extends Fragment {
     }
 
     private void playSong(Song song, int index) {
-        if (song.streamUrl == null || song.streamUrl.isEmpty()) {
-            if (binding != null) binding.progressBar.setVisibility(View.VISIBLE);
-            MusicApi.getStreamUrl(song.id, new MusicApi.SongCallback() {
-                @Override public void onSuccess(Song s) {
-                    if (getActivity() == null || binding == null) return;
-                    requireActivity().runOnUiThread(() -> {
-                        binding.progressBar.setVisibility(View.GONE);
-                        songs.set(index, s);
-                        MusicManager.getInstance().playQueue(songs, index);
-                        if (getActivity() instanceof MainActivity)
-                            ((MainActivity) getActivity()).showPlayer();
-                    });
-                }
-                @Override public void onError(String message) {
-                    if (getActivity() == null || binding == null) return;
-                    requireActivity().runOnUiThread(() -> {
-                        binding.progressBar.setVisibility(View.GONE);
-                        Toast.makeText(requireContext(), "Gagal: " + message, Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
-        } else {
-            MusicManager.getInstance().playQueue(songs, index);
-            if (getActivity() instanceof MainActivity)
-                ((MainActivity) getActivity()).showPlayer();
-        }
+        if (binding == null) return;
+        binding.progressBar.setVisibility(View.VISIBLE);
+        MusicApi.getStreamUrl(song.id, new MusicApi.SongCallback() {
+            @Override public void onSuccess(Song s) {
+                if (getActivity() == null || binding == null) return;
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    if (index < songs.size()) songs.set(index, s);
+                    MusicManager.getInstance().playQueue(songs, index);
+                    if (getActivity() instanceof MainActivity)
+                        ((MainActivity) getActivity()).showPlayer();
+                });
+            }
+            @Override public void onError(String msg) {
+                if (getActivity() == null || binding == null) return;
+                requireActivity().runOnUiThread(() -> {
+                    binding.progressBar.setVisibility(View.GONE);
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
-    private void showSongMenu(Song song) {
+    private void showMenu(Song song) {
         new MaterialAlertDialogBuilder(requireContext())
             .setTitle(song.title)
-            .setItems(new String[]{"Tambah ke Favorit", "Tambah ke Playlist"}, (d, w) -> {
-                if (w == 0) {
-                    MusicManager.getInstance().toggleFavorite(song);
-                    boolean fav = MusicManager.getInstance().isFavorite(song.id);
-                    Toast.makeText(requireContext(), fav ? "❤ Ditambah ke Favorit" : "Dihapus dari Favorit", Toast.LENGTH_SHORT).show();
-                }
+            .setItems(new String[]{"Tambah ke Favorit"}, (d, w) -> {
+                MusicManager.getInstance().toggleFavorite(song);
+                Toast.makeText(requireContext(),
+                    MusicManager.getInstance().isFavorite(song.id) ?
+                    "Ditambah ke Favorit" : "Dihapus dari Favorit",
+                    Toast.LENGTH_SHORT).show();
             }).show();
     }
 
