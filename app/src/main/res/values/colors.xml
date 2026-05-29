@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#0a0a0a</color>
-    <color name="surface">#121212</color>
-    <color name="surface2">#1a1a1a</color>
+    <color name="bg">#121212</color>
+    <color name="surface">#282828</color>
+    <color name="surface2">#3E3E3E</color>
+    <color name="surface3">#181818</color>
     <color name="green">#1DB954</color>
     <color name="green_dark">#158a3e</color>
     <color name="text">#FFFFFF</color>
     <color name="text_dim">#B3B3B3</color>
+    <color name="text_dark">#535353</color>
     <color name="red">#e91429</color>
     <color name="colorPrimary">#1DB954</color>
-    <color name="colorPrimaryDark">#0a0a0a</color>
+    <color name="colorPrimaryDark">#121212</color>
     <color name="colorAccent">#1DB954</color>
+    <color name="mini_player_bg">#282828</color>
+    <color name="nav_bg">#0a0a0a</color>
 </resources>

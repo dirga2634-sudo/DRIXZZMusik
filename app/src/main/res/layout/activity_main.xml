@@ -11,160 +11,187 @@
         android:layout_height="0dp"
         android:layout_weight="1"/>
 
-    <!-- Mini Player -->
+    <!-- Mini Player (Spotify style) -->
     <LinearLayout
         android:id="@+id/mini_player"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/bg_mini_player"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:visibility="gone">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/mini_player_bg"
+        android:visibility="gone"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="4dp">
 
-        <ImageView
-            android:id="@+id/mini_thumbnail"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:src="@drawable/ic_music_placeholder"
-            android:scaleType="centerCrop"
-            android:background="@drawable/bg_circle"/>
+        <!-- Progress line tipis di atas mini player -->
+        <ProgressBar
+            android:id="@+id/mini_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:progressTint="@color/green"
+            android:progressBackgroundTint="@color/surface2"
+            android:max="100"/>
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp">
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
-            <TextView
-                android:id="@+id/mini_title"
-                android:layout_width="match_parent"
+            <!-- Thumbnail -->
+            <ImageView
+                android:id="@+id/mini_thumbnail"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:src="@drawable/ic_music_placeholder"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_thumbnail"/>
+
+            <!-- Title + Artist -->
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Tidak ada lagu"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/text"
-                android:maxLines="1"
-                android:ellipsize="end"/>
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="8dp">
 
-            <TextView
-                android:id="@+id/mini_artist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="-"
-                android:textSize="11sp"
-                android:textColor="@color/text_dim"
-                android:maxLines="1"
-                android:ellipsize="end"/>
+                <TextView
+                    android:id="@+id/mini_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Tidak ada lagu"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text"
+                    android:maxLines="1"
+                    android:ellipsize="marquee"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:selected="true"/>
 
-            <ProgressBar
-                android:id="@+id/mini_progress"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="2dp"
-                android:layout_marginTop="4dp"
-                android:progressTint="@color/green"
-                android:progressBackgroundTint="@color/surface2"
-                android:max="100"/>
+                <TextView
+                    android:id="@+id/mini_artist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="-"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_dim"
+                    android:maxLines="1"
+                    android:ellipsize="end"/>
+            </LinearLayout>
+
+            <!-- Heart button -->
+            <ImageView
+                android:id="@+id/mini_like"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_heart"
+                android:padding="6dp"
+                android:layout_marginEnd="4dp"/>
+
+            <!-- Play/Pause -->
+            <ImageView
+                android:id="@+id/mini_play_pause"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_play"
+                android:padding="4dp"/>
+
+            <!-- Next -->
+            <ImageView
+                android:id="@+id/mini_next"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_skip_next"
+                android:padding="6dp"
+                android:layout_marginStart="4dp"/>
         </LinearLayout>
-
-        <ImageView
-            android:id="@+id/mini_play_pause"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@drawable/ic_play"
-            android:padding="4dp"/>
-
-        <ImageView
-            android:id="@+id/mini_next"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@drawable/ic_skip_next"
-            android:padding="4dp"
-            android:layout_marginStart="4dp"/>
     </LinearLayout>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation Spotify Style -->
     <LinearLayout
         android:id="@+id/bottom_nav"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="58dp"
         android:orientation="horizontal"
-        android:background="@color/surface">
+        android:background="@color/nav_bg"
+        android:paddingTop="4dp">
 
+        <!-- Home -->
         <LinearLayout
             android:id="@+id/nav_home"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:gravity="center"
-            android:padding="6dp">
+            android:gravity="center">
             <ImageView
                 android:id="@+id/nav_icon_home"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:src="@drawable/ic_home"/>
             <TextView
                 android:id="@+id/nav_text_home"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Home"
-                android:textSize="9sp"
+                android:textSize="10sp"
                 android:textColor="@color/green"
                 android:textStyle="bold"
-                android:layout_marginTop="2dp"/>
+                android:layout_marginTop="3dp"/>
         </LinearLayout>
 
+        <!-- Search -->
         <LinearLayout
             android:id="@+id/nav_search"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:gravity="center"
-            android:padding="6dp">
+            android:gravity="center">
             <ImageView
                 android:id="@+id/nav_icon_search"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:src="@drawable/ic_search"/>
             <TextView
                 android:id="@+id/nav_text_search"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Search"
-                android:textSize="9sp"
+                android:textSize="10sp"
                 android:textColor="@color/text_dim"
                 android:textStyle="bold"
-                android:layout_marginTop="2dp"/>
+                android:layout_marginTop="3dp"/>
         </LinearLayout>
 
+        <!-- Library -->
         <LinearLayout
             android:id="@+id/nav_library"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:gravity="center"
-            android:padding="6dp">
+            android:gravity="center">
             <ImageView
                 android:id="@+id/nav_icon_library"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:src="@drawable/ic_library"/>
             <TextView
                 android:id="@+id/nav_text_library"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Library"
-                android:textSize="9sp"
+                android:textSize="10sp"
                 android:textColor="@color/text_dim"
                 android:textStyle="bold"
-                android:layout_marginTop="2dp"/>
+                android:layout_marginTop="3dp"/>
         </LinearLayout>
 
     </LinearLayout>
