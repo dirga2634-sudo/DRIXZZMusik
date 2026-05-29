@@ -6,7 +6,10 @@ import android.util.Log;
 
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import com.drizzx.musik.model.Song;
 import com.google.gson.Gson;
@@ -53,7 +56,16 @@ public class MusicManager {
         loadFavorites();
         loadPlaylists();
 
-        player = new ExoPlayer.Builder(ctx).build();
+        // HTTP data source dengan User-Agent benar agar stream Invidious bisa diputar
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(20000);
+        DefaultDataSource.Factory dsFactory = new DefaultDataSource.Factory(ctx, httpFactory);
+        player = new ExoPlayer.Builder(ctx)
+            .setMediaSourceFactory(new DefaultMediaSourceFactory(dsFactory))
+            .build();
         player.addListener(new Player.Listener() {
             @Override
             public void onPlaybackStateChanged(int state) {
