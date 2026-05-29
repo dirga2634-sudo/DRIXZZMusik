@@ -21,7 +21,6 @@ public class MusicApi {
 
     private static final String TAG = "DrizzxApi";
 
-    // Invidious instances - lebih stabil dari Piped, banyak server aktif
     private static final String[] INVIDIOUS = {
         "https://inv.nadeko.net",
         "https://invidious.nerdvpn.de",
@@ -52,131 +51,116 @@ public class MusicApi {
         void onError(String message);
     }
 
-    // Coba semua instance, pakai yang pertama berhasil
-    private static String fetchFromAny(String path) throws IOException {
-        // Coba working index dulu
-        try {
-            String url = INVIDIOUS[workingIdx] + path;
-            Log.d(TAG, "Trying: " + url);
-            return fetchUrl(url);
-        } catch (IOException ignored) {
-            Log.w(TAG, "Working server failed, trying others...");
-        }
+    // Validasi response adalah JSON bukan HTML error page
+    private static boolean isValidJson(String s) {
+        if (s == null || s.length() < 2) return false;
+        String t = s.trim();
+        return t.startsWith("{") || t.startsWith("[");
+    }
 
-        // Coba semua yang lain
+    // Fetch + validasi JSON dari semua server, fallback otomatis
+    private static String fetchFromAny(String path) throws IOException {
+        // Coba working server dulu
+        try {
+            String result = fetchUrl(INVIDIOUS[workingIdx] + path);
+            if (isValidJson(result)) return result;
+            Log.w(TAG, "Non-JSON from working server, try others...");
+        } catch (IOException ignored) {}
+
+        // Coba semua server lain
         for (int i = 0; i < INVIDIOUS.length; i++) {
             if (i == workingIdx) continue;
             try {
-                String url = INVIDIOUS[i] + path;
-                Log.d(TAG, "Trying: " + url);
-                String result = fetchUrl(url);
-                workingIdx = i; // simpan yang berhasil
-                Log.d(TAG, "Using server: " + INVIDIOUS[i]);
-                return result;
+                String result = fetchUrl(INVIDIOUS[i] + path);
+                if (isValidJson(result)) {
+                    workingIdx = i;
+                    Log.d(TAG, "Switched to: " + INVIDIOUS[i]);
+                    return result;
+                }
+                Log.w(TAG, "Non-JSON from: " + INVIDIOUS[i]);
             } catch (IOException e) {
-                Log.w(TAG, "Failed: " + INVIDIOUS[i] + " -> " + e.getMessage());
+                Log.w(TAG, "IO fail: " + INVIDIOUS[i] + " - " + e.getMessage());
             }
         }
         throw new IOException("Semua server tidak bisa diakses");
     }
 
     private static String fetchUrl(String url) throws IOException {
-        Request request = new Request.Builder()
+        Request req = new Request.Builder()
             .url(url)
-            .addHeader("User-Agent", "Mozilla/5.0 (Android)")
+            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
             .addHeader("Accept", "application/json")
             .build();
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("HTTP " + response.code());
-            }
-            String body = response.body().string();
-            if (body == null || body.isEmpty()) {
-                throw new IOException("Empty response");
-            }
+        try (Response resp = client.newCall(req).execute()) {
+            if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code());
+            String body = resp.body() != null ? resp.body().string() : null;
+            if (body == null || body.isEmpty()) throw new IOException("Empty response");
             return body;
         }
     }
 
-    // ── Search ────────────────────────────────────────────────
+    // ── Search ──────────────────────────────────────────────────────
 
     public static void search(String query, ApiCallback callback) {
         new Thread(() -> {
             try {
-                // Invidious search API
                 String path = "/api/v1/search?q="
                     + query.replace(" ", "+")
                     + "&type=video&page=1";
-
                 String body = fetchFromAny(path);
                 JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseInvidiousSearch(items);
-
-                if (songs.isEmpty()) {
-                    callback.onError("Lagu tidak ditemukan");
-                } else {
-                    callback.onSuccess(songs);
-                }
-            } catch (IOException e) {
-                Log.e(TAG, "Search error: " + e.getMessage());
-                callback.onError("Gagal mencari: " + e.getMessage());
+                List<Song> songs = parseItems(items);
+                if (songs.isEmpty()) callback.onError("Lagu tidak ditemukan");
+                else callback.onSuccess(songs);
             } catch (Exception e) {
-                Log.e(TAG, "Search parse error: " + e.getMessage());
-                callback.onError("Error: " + e.getMessage());
+                Log.e(TAG, "Search error: " + e.getMessage());
+                callback.onError("Gagal mencari lagu");
             }
         }).start();
     }
 
-    // ── Trending ──────────────────────────────────────────────
+    // ── Trending ────────────────────────────────────────────────────
 
     public static void getTrending(ApiCallback callback) {
         new Thread(() -> {
             try {
-                // Invidious trending API - semua musik global
+                // Trending musik global
                 String body = fetchFromAny("/api/v1/trending?type=music");
                 JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseInvidiousSearch(items);
+                List<Song> songs = parseItems(items);
 
                 if (!songs.isEmpty()) {
-                    Log.d(TAG, "Trending loaded: " + songs.size() + " songs");
                     callback.onSuccess(songs);
                     return;
                 }
 
-                // Fallback: trending umum tanpa filter
+                // Fallback: trending semua konten
                 body = fetchFromAny("/api/v1/trending");
                 items = JsonParser.parseString(body).getAsJsonArray();
-                songs = parseInvidiousSearch(items);
+                songs = parseItems(items);
 
                 if (!songs.isEmpty()) {
                     callback.onSuccess(songs);
                     return;
                 }
 
-                // Fallback: search lagu Indonesia populer
-                searchFallback(callback);
+                // Fallback: search global hits
+                fallbackSearch(callback);
 
-            } catch (IOException e) {
-                Log.e(TAG, "Trending error: " + e.getMessage());
-                searchFallback(callback);
             } catch (Exception e) {
-                Log.e(TAG, "Trending parse error: " + e.getMessage());
-                searchFallback(callback);
+                Log.e(TAG, "Trending error: " + e.getMessage());
+                fallbackSearch(callback);
             }
         }).start();
     }
 
-    private static void searchFallback(ApiCallback callback) {
-        String[] queries = {
-            "top+hits+2024",
-            "music+viral+2024",
-            "best+songs+2024"
-        };
+    private static void fallbackSearch(ApiCallback callback) {
+        String[] queries = {"top+hits+2024", "music+viral+2024", "best+songs+2024"};
         for (String q : queries) {
             try {
                 String body = fetchFromAny("/api/v1/search?q=" + q + "&type=video&page=1");
                 JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseInvidiousSearch(items);
+                List<Song> songs = parseItems(items);
                 if (!songs.isEmpty()) {
                     callback.onSuccess(songs);
                     return;
@@ -186,57 +170,66 @@ public class MusicApi {
         callback.onError("Gagal memuat. Coba lagi.");
     }
 
-    // ── Stream URL ────────────────────────────────────────────
+    // ── Stream URL ──────────────────────────────────────────────────
 
     public static void getStreamUrl(String videoId, SongCallback callback) {
         new Thread(() -> {
-            try {
-                // Invidious video endpoint: dapat info + semua stream URL sekaligus
-                String body = fetchFromAny("/api/v1/videos/" + videoId
-                    + "?fields=title,author,lengthSeconds,videoThumbnails,adaptiveFormats,formatStreams,description");
-                JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+            // Coba semua server satu per satu sampai dapat stream valid
+            String lastError = "Gagal memuat audio";
+            for (int attempt = 0; attempt < INVIDIOUS.length; attempt++) {
+                int idx = (workingIdx + attempt) % INVIDIOUS.length;
+                try {
+                    String url = INVIDIOUS[idx]
+                        + "/api/v1/videos/" + videoId
+                        + "?fields=title,author,lengthSeconds,videoThumbnails,adaptiveFormats,formatStreams,description";
 
-                String title     = getStr(json, "title", "Unknown");
-                String author    = getStr(json, "author", "Unknown");
-                long   duration  = json.has("lengthSeconds") ? json.get("lengthSeconds").getAsLong() : 0;
-                String thumb     = getBestThumb(json);
-                String desc      = getStr(json, "description", "");
+                    String body = fetchUrl(url);
 
-                // Cari audio stream terbaik
-                String streamUrl = getBestAudio(json);
+                    // Validasi JSON dulu sebelum parse
+                    if (!isValidJson(body)) {
+                        Log.w(TAG, "Non-JSON stream response from: " + INVIDIOUS[idx]);
+                        continue;
+                    }
 
-                if (streamUrl.isEmpty()) {
-                    callback.onError("Tidak ada stream tersedia");
+                    JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+
+                    String title    = getStr(json, "title", "Unknown");
+                    String author   = getStr(json, "author", "Unknown");
+                    long   duration = json.has("lengthSeconds") ? json.get("lengthSeconds").getAsLong() : 0;
+                    String thumb    = getBestThumb(json);
+                    String desc     = getStr(json, "description", "");
+                    String stream   = getBestAudio(json);
+
+                    if (stream.isEmpty()) {
+                        Log.w(TAG, "No audio stream from: " + INVIDIOUS[idx]);
+                        continue;
+                    }
+
+                    // Berhasil — update working index
+                    workingIdx = idx;
+                    Song song = new Song(videoId, title, author, "", formatDuration(duration), stream, thumb);
+                    song.lyrics = desc.length() > 30 ? desc : "";
+                    Log.d(TAG, "Stream OK: " + title + " from " + INVIDIOUS[idx]);
+                    callback.onSuccess(song);
                     return;
+
+                } catch (Exception e) {
+                    lastError = e.getMessage();
+                    Log.w(TAG, "Stream attempt failed [" + INVIDIOUS[idx] + "]: " + e.getMessage());
                 }
-
-                Song song = new Song(videoId, title, author, "", formatDuration(duration), streamUrl, thumb);
-                song.lyrics = desc.length() > 20 ? desc : "";
-
-                Log.d(TAG, "Stream loaded for: " + title);
-                callback.onSuccess(song);
-
-            } catch (IOException e) {
-                Log.e(TAG, "Stream error: " + e.getMessage());
-                callback.onError("Gagal memuat audio");
-            } catch (Exception e) {
-                Log.e(TAG, "Stream parse error: " + e.getMessage());
-                callback.onError("Error: " + e.getMessage());
             }
+            callback.onError("Gagal: " + lastError);
         }).start();
     }
 
-    // ── Helpers ───────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────
 
-    private static List<Song> parseInvidiousSearch(JsonArray items) {
+    private static List<Song> parseItems(JsonArray items) {
         List<Song> songs = new ArrayList<>();
         if (items == null) return songs;
-
         for (JsonElement el : items) {
             try {
                 JsonObject item = el.getAsJsonObject();
-
-                // Invidious bisa return video/playlist/channel - ambil video saja
                 String type = getStr(item, "type", "video");
                 if (!type.equals("video")) continue;
 
@@ -248,12 +241,12 @@ public class MusicApi {
                 long   dur    = item.has("lengthSeconds") ? item.get("lengthSeconds").getAsLong() : 0;
                 String thumb  = getBestThumb(item);
 
-                // Filter: skip video terlalu pendek (< 60 detik = bukan lagu)
+                // Skip video terlalu pendek (< 60s = bukan lagu)
                 if (dur > 0 && dur < 60) continue;
 
                 songs.add(new Song(id, title, author, "", formatDuration(dur), "", thumb));
             } catch (Exception e) {
-                Log.w(TAG, "Parse item error: " + e.getMessage());
+                Log.w(TAG, "Parse error: " + e.getMessage());
             }
         }
         return songs;
@@ -263,43 +256,36 @@ public class MusicApi {
         if (!json.has("videoThumbnails")) return "";
         try {
             JsonArray thumbs = json.getAsJsonArray("videoThumbnails");
-            // Cari kualitas "medium" atau "high" dulu
             for (JsonElement t : thumbs) {
                 JsonObject th = t.getAsJsonObject();
-                String quality = getStr(th, "quality", "");
-                if (quality.equals("medium") || quality.equals("high") || quality.equals("maxres")) {
+                String q = getStr(th, "quality", "");
+                if (q.equals("medium") || q.equals("high") || q.equals("maxres")) {
                     return getStr(th, "url", "");
                 }
             }
-            // Kalau tidak ada, pakai yang pertama
-            if (thumbs.size() > 0) {
-                return getStr(thumbs.get(0).getAsJsonObject(), "url", "");
-            }
+            if (thumbs.size() > 0) return getStr(thumbs.get(0).getAsJsonObject(), "url", "");
         } catch (Exception ignored) {}
         return "";
     }
 
     private static String getBestAudio(JsonObject json) {
-        // Prioritas 1: adaptiveFormats (audio only) - kualitas terbaik
+        // Prioritas 1: adaptiveFormats (audio only)
         if (json.has("adaptiveFormats")) {
             try {
                 JsonArray af = json.getAsJsonArray("adaptiveFormats");
-                String bestUrl  = "";
-                int    bestBit  = 0;
-                String bestM4a  = ""; // Prioritaskan m4a (mp4 audio)
+                String bestM4a = "";
+                String bestOther = "";
+                int bestBit = 0;
 
                 for (JsonElement el : af) {
-                    JsonObject f  = el.getAsJsonObject();
-                    String type   = getStr(f, "type", "");
-                    String url    = getStr(f, "url", "");
+                    JsonObject f   = el.getAsJsonObject();
+                    String type    = getStr(f, "type", "");
+                    String url     = getStr(f, "url", "");
                     if (url.isEmpty() || !type.startsWith("audio")) continue;
 
                     int bitrate = 0;
-                    if (f.has("bitrate")) {
-                        try { bitrate = f.get("bitrate").getAsInt(); } catch (Exception ignored) {}
-                    }
+                    try { bitrate = f.get("bitrate").getAsInt(); } catch (Exception ignored) {}
 
-                    // m4a/mp4 audio lebih kompatibel di Android ExoPlayer
                     if (type.contains("mp4") || type.contains("m4a")) {
                         if (bitrate > bestBit || bestM4a.isEmpty()) {
                             bestBit = bitrate;
@@ -307,41 +293,34 @@ public class MusicApi {
                         }
                     } else if (bestM4a.isEmpty() && bitrate > bestBit) {
                         bestBit = bitrate;
-                        bestUrl = url;
+                        bestOther = url;
                     }
                 }
-
                 if (!bestM4a.isEmpty()) return bestM4a;
-                if (!bestUrl.isEmpty()) return bestUrl;
+                if (!bestOther.isEmpty()) return bestOther;
             } catch (Exception ignored) {}
         }
 
-        // Prioritas 2: formatStreams (video+audio muxed) - fallback
+        // Prioritas 2: formatStreams (video+audio muxed)
         if (json.has("formatStreams")) {
             try {
                 JsonArray fs = json.getAsJsonArray("formatStreams");
-                // Ambil stream 360p atau 720p (ada audio-nya)
                 for (JsonElement el : fs) {
                     JsonObject f = el.getAsJsonObject();
                     String url  = getStr(f, "url", "");
                     String type = getStr(f, "type", "");
                     if (!url.isEmpty() && type.contains("mp4")) return url;
                 }
-                // Kalau tidak ada mp4, ambil yang pertama
-                if (fs.size() > 0) {
-                    return getStr(fs.get(0).getAsJsonObject(), "url", "");
-                }
+                if (fs.size() > 0) return getStr(fs.get(0).getAsJsonObject(), "url", "");
             } catch (Exception ignored) {}
         }
-
         return "";
     }
 
     private static String getStr(JsonObject obj, String key, String def) {
         try {
-            if (obj.has(key) && !obj.get(key).isJsonNull()) {
+            if (obj.has(key) && !obj.get(key).isJsonNull())
                 return obj.get(key).getAsString();
-            }
         } catch (Exception ignored) {}
         return def;
     }
