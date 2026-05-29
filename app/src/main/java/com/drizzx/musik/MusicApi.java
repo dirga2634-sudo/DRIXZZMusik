@@ -19,8 +19,11 @@ import okhttp3.Response;
 
 public class MusicApi {
 
-    private static final String TAG = "DrizzxApi";
+    private static final String TAG    = "DrizzxApi";
+    private static final String YTKEY  = "AIzaSyA2PIJSWMqWZMmPBaVyV42HZWNE05e1ZIQ";
+    private static final String YT_BASE = "https://www.googleapis.com/youtube/v3";
 
+    // Invidious hanya untuk stream URL (YouTube API tidak kasih stream)
     private static final String[] INVIDIOUS = {
         "https://inv.nadeko.net",
         "https://invidious.nerdvpn.de",
@@ -29,15 +32,12 @@ public class MusicApi {
         "https://yt.artemislena.eu",
         "https://invidious.fdn.fr",
         "https://invidious.io.lol",
-        "https://invidious.perennialte.ch",
-        "https://invidious.slipfox.xyz",
         "https://invidious.darkness.services"
     };
-
-    private static int workingIdx = 0;
+    private static int invIdx = 0;
 
     private static final OkHttpClient client = new OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build();
 
@@ -51,67 +51,36 @@ public class MusicApi {
         void onError(String message);
     }
 
-    // Validasi response adalah JSON bukan HTML error page
-    private static boolean isValidJson(String s) {
-        if (s == null || s.length() < 2) return false;
-        String t = s.trim();
-        return t.startsWith("{") || t.startsWith("[");
-    }
-
-    // Fetch + validasi JSON dari semua server, fallback otomatis
-    private static String fetchFromAny(String path) throws IOException {
-        // Coba working server dulu
-        try {
-            String result = fetchUrl(INVIDIOUS[workingIdx] + path);
-            if (isValidJson(result)) return result;
-            Log.w(TAG, "Non-JSON from working server, try others...");
-        } catch (IOException ignored) {}
-
-        // Coba semua server lain
-        for (int i = 0; i < INVIDIOUS.length; i++) {
-            if (i == workingIdx) continue;
-            try {
-                String result = fetchUrl(INVIDIOUS[i] + path);
-                if (isValidJson(result)) {
-                    workingIdx = i;
-                    Log.d(TAG, "Switched to: " + INVIDIOUS[i]);
-                    return result;
-                }
-                Log.w(TAG, "Non-JSON from: " + INVIDIOUS[i]);
-            } catch (IOException e) {
-                Log.w(TAG, "IO fail: " + INVIDIOUS[i] + " - " + e.getMessage());
-            }
-        }
-        throw new IOException("Semua server tidak bisa diakses");
-    }
-
-    private static String fetchUrl(String url) throws IOException {
-        Request req = new Request.Builder()
-            .url(url)
-            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
-            .addHeader("Accept", "application/json")
-            .build();
-        try (Response resp = client.newCall(req).execute()) {
-            if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code());
-            String body = resp.body() != null ? resp.body().string() : null;
-            if (body == null || body.isEmpty()) throw new IOException("Empty response");
-            return body;
-        }
-    }
-
-    // ── Search ──────────────────────────────────────────────────────
+    // ── Search (YouTube Data API) ────────────────────────────────────
 
     public static void search(String query, ApiCallback callback) {
         new Thread(() -> {
             try {
-                String path = "/api/v1/search?q="
-                    + query.replace(" ", "+")
-                    + "&type=video&page=1";
-                String body = fetchFromAny(path);
-                JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseItems(items);
+                String url = YT_BASE + "/search"
+                    + "?part=snippet"
+                    + "&type=video"
+                    + "&videoCategoryId=10"   // kategori musik
+                    + "&q=" + query.replace(" ", "+")
+                    + "&maxResults=25"
+                    + "&key=" + YTKEY;
+
+                String body = fetchUrl(url);
+                JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+
+                // Cek error dari YouTube API
+                if (json.has("error")) {
+                    String msg = json.getAsJsonObject("error").get("message").getAsString();
+                    Log.e(TAG, "YT API Error: " + msg);
+                    callback.onError("API Error: " + msg);
+                    return;
+                }
+
+                JsonArray items = json.getAsJsonArray("items");
+                List<Song> songs = parseSearchItems(items);
+
                 if (songs.isEmpty()) callback.onError("Lagu tidak ditemukan");
                 else callback.onSuccess(songs);
+
             } catch (Exception e) {
                 Log.e(TAG, "Search error: " + e.getMessage());
                 callback.onError("Gagal mencari lagu");
@@ -119,189 +88,204 @@ public class MusicApi {
         }).start();
     }
 
-    // ── Trending ────────────────────────────────────────────────────
+    // ── Trending (YouTube Data API - mostPopular musik) ──────────────
 
     public static void getTrending(ApiCallback callback) {
         new Thread(() -> {
             try {
-                // Trending musik global
-                String body = fetchFromAny("/api/v1/trending?type=music");
-                JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseItems(items);
+                // YouTube chart=mostPopular, kategori 10 = Music
+                String url = YT_BASE + "/videos"
+                    + "?part=snippet,contentDetails"
+                    + "&chart=mostPopular"
+                    + "&videoCategoryId=10"
+                    + "&maxResults=30"
+                    + "&key=" + YTKEY;
 
-                if (!songs.isEmpty()) {
-                    callback.onSuccess(songs);
+                String body = fetchUrl(url);
+                JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+
+                if (json.has("error")) {
+                    String msg = json.getAsJsonObject("error").get("message").getAsString();
+                    Log.e(TAG, "YT API Error: " + msg);
+                    callback.onError("API Error: " + msg);
                     return;
                 }
 
-                // Fallback: trending semua konten
-                body = fetchFromAny("/api/v1/trending");
-                items = JsonParser.parseString(body).getAsJsonArray();
-                songs = parseItems(items);
+                JsonArray items = json.getAsJsonArray("items");
+                List<Song> songs = parseTrendingItems(items);
 
-                if (!songs.isEmpty()) {
-                    callback.onSuccess(songs);
-                    return;
-                }
-
-                // Fallback: search global hits
-                fallbackSearch(callback);
+                if (songs.isEmpty()) callback.onError("Gagal memuat trending");
+                else callback.onSuccess(songs);
 
             } catch (Exception e) {
                 Log.e(TAG, "Trending error: " + e.getMessage());
-                fallbackSearch(callback);
+                callback.onError("Gagal memuat. Coba lagi.");
             }
         }).start();
     }
 
-    private static void fallbackSearch(ApiCallback callback) {
-        String[] queries = {"top+hits+2024", "music+viral+2024", "best+songs+2024"};
-        for (String q : queries) {
-            try {
-                String body = fetchFromAny("/api/v1/search?q=" + q + "&type=video&page=1");
-                JsonArray items = JsonParser.parseString(body).getAsJsonArray();
-                List<Song> songs = parseItems(items);
-                if (!songs.isEmpty()) {
-                    callback.onSuccess(songs);
-                    return;
-                }
-            } catch (Exception ignored) {}
-        }
-        callback.onError("Gagal memuat. Coba lagi.");
-    }
-
-    // ── Stream URL ──────────────────────────────────────────────────
+    // ── Stream URL (Invidious - satu-satunya yang bisa kasih audio URL) ──
 
     public static void getStreamUrl(String videoId, SongCallback callback) {
         new Thread(() -> {
-            // Coba semua server satu per satu sampai dapat stream valid
-            String lastError = "Gagal memuat audio";
+            // Coba semua Invidious server sampai dapat stream valid
             for (int attempt = 0; attempt < INVIDIOUS.length; attempt++) {
-                int idx = (workingIdx + attempt) % INVIDIOUS.length;
+                int idx = (invIdx + attempt) % INVIDIOUS.length;
                 try {
-                    String url = INVIDIOUS[idx]
-                        + "/api/v1/videos/" + videoId
-                        + "?fields=title,author,lengthSeconds,videoThumbnails,adaptiveFormats,formatStreams,description";
+                    String url = INVIDIOUS[idx] + "/api/v1/videos/" + videoId
+                        + "?fields=title,author,lengthSeconds,videoThumbnails,adaptiveFormats,formatStreams";
 
                     String body = fetchUrl(url);
-
-                    // Validasi JSON dulu sebelum parse
-                    if (!isValidJson(body)) {
-                        Log.w(TAG, "Non-JSON stream response from: " + INVIDIOUS[idx]);
+                    if (!isJson(body)) {
+                        Log.w(TAG, "Non-JSON from: " + INVIDIOUS[idx]);
                         continue;
                     }
 
                     JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+                    String streamUrl = getBestAudio(json);
 
+                    if (streamUrl.isEmpty()) {
+                        Log.w(TAG, "No stream from: " + INVIDIOUS[idx]);
+                        continue;
+                    }
+
+                    // Berhasil
+                    invIdx = idx;
                     String title    = getStr(json, "title", "Unknown");
                     String author   = getStr(json, "author", "Unknown");
                     long   duration = json.has("lengthSeconds") ? json.get("lengthSeconds").getAsLong() : 0;
                     String thumb    = getBestThumb(json);
-                    String desc     = getStr(json, "description", "");
-                    String stream   = getBestAudio(json);
 
-                    if (stream.isEmpty()) {
-                        Log.w(TAG, "No audio stream from: " + INVIDIOUS[idx]);
-                        continue;
-                    }
-
-                    // Berhasil — update working index
-                    workingIdx = idx;
-                    Song song = new Song(videoId, title, author, "", formatDuration(duration), stream, thumb);
-                    song.lyrics = desc.length() > 30 ? desc : "";
-                    Log.d(TAG, "Stream OK: " + title + " from " + INVIDIOUS[idx]);
+                    Song song = new Song(videoId, title, author, "", formatDuration(duration), streamUrl, thumb);
+                    Log.d(TAG, "Stream OK: " + title);
                     callback.onSuccess(song);
                     return;
 
                 } catch (Exception e) {
-                    lastError = e.getMessage();
-                    Log.w(TAG, "Stream attempt failed [" + INVIDIOUS[idx] + "]: " + e.getMessage());
+                    Log.w(TAG, "Stream fail [" + INVIDIOUS[idx] + "]: " + e.getMessage());
                 }
             }
-            callback.onError("Gagal: " + lastError);
+            callback.onError("Gagal memuat audio. Coba lagu lain.");
         }).start();
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
+    // ── Parse helpers ────────────────────────────────────────────────
 
-    private static List<Song> parseItems(JsonArray items) {
+    // Parse hasil /search YouTube API
+    private static List<Song> parseSearchItems(JsonArray items) {
         List<Song> songs = new ArrayList<>();
         if (items == null) return songs;
         for (JsonElement el : items) {
             try {
                 JsonObject item = el.getAsJsonObject();
-                String type = getStr(item, "type", "video");
-                if (!type.equals("video")) continue;
+                String videoId = item.getAsJsonObject("id").get("videoId").getAsString();
+                JsonObject snip = item.getAsJsonObject("snippet");
 
-                String id    = getStr(item, "videoId", "");
-                if (id.isEmpty()) continue;
+                String title   = getStr(snip, "title", "Unknown");
+                String channel = getStr(snip, "channelTitle", "Unknown");
+                String thumb   = getThumbFromSnippet(snip);
 
-                String title  = getStr(item, "title", "Unknown");
-                String author = getStr(item, "author", "Unknown");
-                long   dur    = item.has("lengthSeconds") ? item.get("lengthSeconds").getAsLong() : 0;
-                String thumb  = getBestThumb(item);
-
-                // Skip video terlalu pendek (< 60s = bukan lagu)
-                if (dur > 0 && dur < 60) continue;
-
-                songs.add(new Song(id, title, author, "", formatDuration(dur), "", thumb));
+                songs.add(new Song(videoId, title, channel, "", "", "", thumb));
             } catch (Exception e) {
-                Log.w(TAG, "Parse error: " + e.getMessage());
+                Log.w(TAG, "Parse search item: " + e.getMessage());
             }
         }
         return songs;
     }
 
-    private static String getBestThumb(JsonObject json) {
-        if (!json.has("videoThumbnails")) return "";
-        try {
-            JsonArray thumbs = json.getAsJsonArray("videoThumbnails");
-            for (JsonElement t : thumbs) {
-                JsonObject th = t.getAsJsonObject();
-                String q = getStr(th, "quality", "");
-                if (q.equals("medium") || q.equals("high") || q.equals("maxres")) {
-                    return getStr(th, "url", "");
+    // Parse hasil /videos trending YouTube API
+    private static List<Song> parseTrendingItems(JsonArray items) {
+        List<Song> songs = new ArrayList<>();
+        if (items == null) return songs;
+        for (JsonElement el : items) {
+            try {
+                JsonObject item   = el.getAsJsonObject();
+                String videoId    = getStr(item, "id", "");
+                if (videoId.isEmpty()) continue;
+
+                JsonObject snip   = item.getAsJsonObject("snippet");
+                String title      = getStr(snip, "title", "Unknown");
+                String channel    = getStr(snip, "channelTitle", "Unknown");
+                String thumb      = getThumbFromSnippet(snip);
+                String duration   = "";
+
+                // Parse durasi dari contentDetails (format: PT3M45S)
+                if (item.has("contentDetails")) {
+                    String iso = getStr(item.getAsJsonObject("contentDetails"), "duration", "");
+                    duration = parseIsoDuration(iso);
                 }
+
+                songs.add(new Song(videoId, title, channel, "", duration, "", thumb));
+            } catch (Exception e) {
+                Log.w(TAG, "Parse trending item: " + e.getMessage());
             }
-            if (thumbs.size() > 0) return getStr(thumbs.get(0).getAsJsonObject(), "url", "");
+        }
+        return songs;
+    }
+
+    private static String getThumbFromSnippet(JsonObject snip) {
+        try {
+            JsonObject thumbs = snip.getAsJsonObject("thumbnails");
+            // Prioritas: medium > default
+            if (thumbs.has("medium"))
+                return thumbs.getAsJsonObject("medium").get("url").getAsString();
+            if (thumbs.has("default"))
+                return thumbs.getAsJsonObject("default").get("url").getAsString();
         } catch (Exception ignored) {}
         return "";
     }
 
+    // Parse ISO 8601 duration: PT3M45S -> "3:45"
+    private static String parseIsoDuration(String iso) {
+        if (iso == null || iso.isEmpty()) return "";
+        try {
+            int h = 0, m = 0, s = 0;
+            String tmp = iso.replace("PT", "");
+            if (tmp.contains("H")) {
+                h = Integer.parseInt(tmp.substring(0, tmp.indexOf("H")));
+                tmp = tmp.substring(tmp.indexOf("H") + 1);
+            }
+            if (tmp.contains("M")) {
+                m = Integer.parseInt(tmp.substring(0, tmp.indexOf("M")));
+                tmp = tmp.substring(tmp.indexOf("M") + 1);
+            }
+            if (tmp.contains("S")) {
+                s = Integer.parseInt(tmp.replace("S", ""));
+            }
+            if (h > 0) return String.format("%d:%02d:%02d", h, m, s);
+            return String.format("%d:%02d", m, s);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    // ── Invidious stream helpers ─────────────────────────────────────
+
     private static String getBestAudio(JsonObject json) {
-        // Prioritas 1: adaptiveFormats (audio only)
+        // Prioritas 1: adaptiveFormats (audio only - kualitas terbaik)
         if (json.has("adaptiveFormats")) {
             try {
                 JsonArray af = json.getAsJsonArray("adaptiveFormats");
-                String bestM4a = "";
-                String bestOther = "";
+                String bestM4a = "", bestOther = "";
                 int bestBit = 0;
-
                 for (JsonElement el : af) {
-                    JsonObject f   = el.getAsJsonObject();
-                    String type    = getStr(f, "type", "");
-                    String url     = getStr(f, "url", "");
+                    JsonObject f  = el.getAsJsonObject();
+                    String type   = getStr(f, "type", "");
+                    String url    = getStr(f, "url", "");
                     if (url.isEmpty() || !type.startsWith("audio")) continue;
-
-                    int bitrate = 0;
-                    try { bitrate = f.get("bitrate").getAsInt(); } catch (Exception ignored) {}
-
+                    int bit = 0;
+                    try { bit = f.get("bitrate").getAsInt(); } catch (Exception ignored) {}
                     if (type.contains("mp4") || type.contains("m4a")) {
-                        if (bitrate > bestBit || bestM4a.isEmpty()) {
-                            bestBit = bitrate;
-                            bestM4a = url;
-                        }
-                    } else if (bestM4a.isEmpty() && bitrate > bestBit) {
-                        bestBit = bitrate;
-                        bestOther = url;
+                        if (bit > bestBit || bestM4a.isEmpty()) { bestBit = bit; bestM4a = url; }
+                    } else if (bestM4a.isEmpty() && bit > bestBit) {
+                        bestBit = bit; bestOther = url;
                     }
                 }
                 if (!bestM4a.isEmpty()) return bestM4a;
                 if (!bestOther.isEmpty()) return bestOther;
             } catch (Exception ignored) {}
         }
-
-        // Prioritas 2: formatStreams (video+audio muxed)
+        // Prioritas 2: formatStreams (muxed video+audio)
         if (json.has("formatStreams")) {
             try {
                 JsonArray fs = json.getAsJsonArray("formatStreams");
@@ -317,6 +301,43 @@ public class MusicApi {
         return "";
     }
 
+    private static String getBestThumb(JsonObject json) {
+        if (!json.has("videoThumbnails")) return "";
+        try {
+            JsonArray thumbs = json.getAsJsonArray("videoThumbnails");
+            for (JsonElement t : thumbs) {
+                JsonObject th = t.getAsJsonObject();
+                String q = getStr(th, "quality", "");
+                if (q.equals("medium") || q.equals("high") || q.equals("maxres"))
+                    return getStr(th, "url", "");
+            }
+            if (thumbs.size() > 0) return getStr(thumbs.get(0).getAsJsonObject(), "url", "");
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    // ── Util ─────────────────────────────────────────────────────────
+
+    private static String fetchUrl(String url) throws IOException {
+        Request req = new Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile)")
+            .addHeader("Accept", "application/json")
+            .build();
+        try (Response resp = client.newCall(req).execute()) {
+            if (!resp.isSuccessful()) throw new IOException("HTTP " + resp.code());
+            String body = resp.body() != null ? resp.body().string() : null;
+            if (body == null || body.isEmpty()) throw new IOException("Empty response");
+            return body;
+        }
+    }
+
+    private static boolean isJson(String s) {
+        if (s == null || s.length() < 2) return false;
+        String t = s.trim();
+        return t.startsWith("{") || t.startsWith("[");
+    }
+
     private static String getStr(JsonObject obj, String key, String def) {
         try {
             if (obj.has(key) && !obj.get(key).isJsonNull())
@@ -326,8 +347,7 @@ public class MusicApi {
     }
 
     private static String formatDuration(long seconds) {
-        long m = seconds / 60;
-        long s = seconds % 60;
+        long m = seconds / 60, s = seconds % 60;
         return String.format("%d:%02d", m, s);
     }
 }
