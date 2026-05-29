@@ -1,6 +1,8 @@
 package com.drizzx.musik.fragment;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -32,15 +34,13 @@ public class SearchFragment extends Fragment {
 
         adapter = new SongAdapter(new SongAdapter.OnClick() {
             @Override
-            public void onClick(Song song, int index) {
-                playFromSearch(song, index);
-            }
+            public void onClick(Song song, int index) { playFromSearch(song, index); }
             @Override
             public void onMore(Song song) {
                 MusicManager.getInstance().toggleFavorite(song);
                 Toast.makeText(requireContext(),
                     MusicManager.getInstance().isFavorite(song.id) ?
-                    "Ditambah ke Favorites" : "Dihapus dari Favorites",
+                    "Ditambah ke Favorit" : "Dihapus dari Favorit",
                     Toast.LENGTH_SHORT).show();
             }
         });
@@ -48,12 +48,30 @@ public class SearchFragment extends Fragment {
         binding.rvResults.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvResults.setAdapter(adapter);
 
+        // Cari saat tekan Search di keyboard
         binding.etSearch.setOnEditorActionListener((v, actionId, e) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) { doSearch(); return true; }
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                doSearch();
+                return true;
+            }
             return false;
         });
 
-        binding.btnSearch.setOnClickListener(v -> doSearch());
+        // Sembunyikan browse label saat mulai mengetik
+        binding.etSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}
+            @Override public void onTextChanged(CharSequence s, int st, int b, int c) {
+                boolean empty = s.toString().trim().isEmpty();
+                binding.tvBrowseLabel.setVisibility(empty ? View.VISIBLE : View.GONE);
+                if (empty) {
+                    binding.rvResults.setVisibility(View.GONE);
+                    binding.tvEmpty.setVisibility(View.GONE);
+                    binding.tvResultCount.setVisibility(View.GONE);
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
         return binding.getRoot();
     }
 
@@ -67,50 +85,57 @@ public class SearchFragment extends Fragment {
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.rvResults.setVisibility(View.GONE);
         binding.tvEmpty.setVisibility(View.GONE);
+        binding.tvBrowseLabel.setVisibility(View.GONE);
 
         MusicApi.search(query, new MusicApi.ApiCallback() {
             @Override
             public void onSuccess(List<Song> songs) {
+                if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
                     if (songs.isEmpty()) {
                         binding.tvEmpty.setVisibility(View.VISIBLE);
                         binding.tvEmpty.setText("Lagu tidak ditemukan");
+                        binding.tvResultCount.setVisibility(View.GONE);
                     } else {
                         results = songs;
                         adapter.setData(songs);
                         binding.rvResults.setVisibility(View.VISIBLE);
+                        binding.tvResultCount.setVisibility(View.VISIBLE);
                         binding.tvResultCount.setText(songs.size() + " hasil ditemukan");
                     }
                 });
             }
             @Override
             public void onError(String message) {
+                if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
                     binding.tvEmpty.setVisibility(View.VISIBLE);
-                    binding.tvEmpty.setText("Error: " + message);
+                    binding.tvEmpty.setText("Gagal: " + message);
                 });
             }
         });
     }
 
     private void playFromSearch(Song song, int index) {
+        if (binding == null) return;
         binding.progressBar.setVisibility(View.VISIBLE);
         MusicApi.getStreamUrl(song.id, new MusicApi.SongCallback() {
             @Override
             public void onSuccess(Song s) {
+                if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
                     results.set(index, s);
                     MusicManager.getInstance().playQueue(results, index);
-                    if (getActivity() instanceof MainActivity) {
+                    if (getActivity() instanceof MainActivity)
                         ((MainActivity) getActivity()).showPlayer();
-                    }
                 });
             }
             @Override
             public void onError(String message) {
+                if (getActivity() == null || binding == null) return;
                 requireActivity().runOnUiThread(() -> {
                     binding.progressBar.setVisibility(View.GONE);
                     Toast.makeText(requireContext(), "Gagal: " + message, Toast.LENGTH_SHORT).show();

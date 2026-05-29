@@ -25,7 +25,6 @@
             android:textStyle="bold"
             android:textColor="@color/text"/>
 
-        <!-- Add playlist button -->
         <TextView
             android:id="@+id/btn_new_playlist"
             android:layout_width="wrap_content"
@@ -37,10 +36,11 @@
             android:background="@drawable/bg_btn_outline_green"
             android:gravity="center"
             android:paddingStart="14dp"
-            android:paddingEnd="14dp"/>
+            android:paddingEnd="14dp"
+            android:visibility="gone"/>
     </LinearLayout>
 
-    <!-- Tabs: Playlist | Favorites -->
+    <!-- Tabs -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -48,7 +48,7 @@
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingTop="8dp"
-        android:paddingBottom="4dp">
+        android:paddingBottom="12dp">
 
         <TextView
             android:id="@+id/tab_favorites"
@@ -82,8 +82,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/surface"
-        android:layout_marginTop="12dp"/>
+        android:background="@color/surface"/>
 
     <!-- Count -->
     <TextView
@@ -107,7 +106,7 @@
         android:padding="32dp"
         android:visibility="gone"/>
 
-    <!-- Content list -->
+    <!-- List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_content"
         android:layout_width="match_parent"

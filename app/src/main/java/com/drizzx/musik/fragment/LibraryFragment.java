@@ -1,5 +1,6 @@
 package com.drizzx.musik.fragment;
 
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.drizzx.musik.MainActivity;
 import com.drizzx.musik.MusicManager;
+import com.drizzx.musik.R;
 import com.drizzx.musik.adapter.SongAdapter;
 import com.drizzx.musik.databinding.FragmentLibraryBinding;
 import com.drizzx.musik.model.Playlist;
@@ -35,14 +37,13 @@ public class LibraryFragment extends Fragment {
             public void onClick(Song song, int index) {
                 List<Song> favs = MusicManager.getInstance().getFavorites();
                 MusicManager.getInstance().playQueue(favs, index);
-                if (getActivity() instanceof MainActivity) {
+                if (getActivity() instanceof MainActivity)
                     ((MainActivity) getActivity()).showPlayer();
-                }
             }
             @Override
             public void onMore(Song song) {
                 MusicManager.getInstance().toggleFavorite(song);
-                Toast.makeText(requireContext(), "Dihapus dari Favorites", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "Dihapus dari Favorit", Toast.LENGTH_SHORT).show();
                 loadFavorites();
             }
         });
@@ -50,7 +51,6 @@ public class LibraryFragment extends Fragment {
         binding.rvContent.setLayoutManager(new LinearLayoutManager(requireContext()));
         binding.rvContent.setAdapter(favAdapter);
 
-        // Tabs
         binding.tabFavorites.setOnClickListener(v -> {
             currentTab = 0;
             updateTabs();
@@ -63,12 +63,10 @@ public class LibraryFragment extends Fragment {
             loadPlaylists();
         });
 
-        // Create playlist button
         binding.btnNewPlaylist.setOnClickListener(v -> showCreatePlaylistDialog());
 
         loadFavorites();
         updateTabs();
-
         return binding.getRoot();
     }
 
@@ -79,6 +77,7 @@ public class LibraryFragment extends Fragment {
             binding.tvEmpty.setVisibility(View.VISIBLE);
             binding.tvEmpty.setText("Belum ada lagu favorit\nTambahkan dengan menekan ikon hati");
             binding.rvContent.setVisibility(View.GONE);
+            binding.tvCount.setText("0 lagu favorit");
         } else {
             binding.tvEmpty.setVisibility(View.GONE);
             binding.rvContent.setVisibility(View.VISIBLE);
@@ -99,21 +98,15 @@ public class LibraryFragment extends Fragment {
             binding.tvEmpty.setVisibility(View.GONE);
             binding.rvContent.setVisibility(View.VISIBLE);
             binding.tvCount.setText(playlists.size() + " playlist");
-            // Show playlist list
-            // For simplicity, show songs from first playlist
-            if (!playlists.isEmpty() && !playlists.get(0).songs.isEmpty()) {
+            if (!playlists.isEmpty() && !playlists.get(0).songs.isEmpty())
                 favAdapter.setData(playlists.get(0).songs);
-            }
         }
     }
 
     private void showCreatePlaylistDialog() {
-        View dialogView = LayoutInflater.from(requireContext())
-            .inflate(android.R.layout.simple_list_item_1, null);
         EditText et = new EditText(requireContext());
         et.setHint("Nama playlist");
         et.setPadding(48, 24, 48, 24);
-
         new MaterialAlertDialogBuilder(requireContext())
             .setTitle("Playlist Baru")
             .setView(et)
@@ -129,12 +122,20 @@ public class LibraryFragment extends Fragment {
     }
 
     private void updateTabs() {
-        int green = requireContext().getColor(com.drizzx.musik.R.color.green);
-        int dim = requireContext().getColor(com.drizzx.musik.R.color.text_dim);
-        binding.tabFavorites.setTextColor(currentTab == 0 ? green : dim);
-        binding.tabPlaylists.setTextColor(currentTab == 1 ? green : dim);
-        binding.tabIndicatorFav.setVisibility(currentTab == 0 ? View.VISIBLE : View.INVISIBLE);
-        binding.tabIndicatorPl.setVisibility(currentTab == 1 ? View.VISIBLE : View.INVISIBLE);
+        // Ganti warna tab pakai drawable background bukan indicator view
+        if (currentTab == 0) {
+            // Favorit aktif
+            binding.tabFavorites.setBackgroundResource(R.drawable.bg_btn_green);
+            binding.tabFavorites.setTextColor(requireContext().getColor(R.color.bg));
+            binding.tabPlaylists.setBackgroundResource(R.drawable.bg_btn_outline_green);
+            binding.tabPlaylists.setTextColor(requireContext().getColor(R.color.text));
+        } else {
+            // Playlist aktif
+            binding.tabPlaylists.setBackgroundResource(R.drawable.bg_btn_green);
+            binding.tabPlaylists.setTextColor(requireContext().getColor(R.color.bg));
+            binding.tabFavorites.setBackgroundResource(R.drawable.bg_btn_outline_green);
+            binding.tabFavorites.setTextColor(requireContext().getColor(R.color.text));
+        }
     }
 
     @Override public void onDestroyView() { super.onDestroyView(); binding = null; }
