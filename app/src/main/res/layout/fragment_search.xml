@@ -17,52 +17,47 @@
         android:paddingTop="20dp"
         android:paddingBottom="12dp"/>
 
-    <!-- Search bar Spotify style -->
-    <LinearLayout
+    <!-- Search bar Spotify style: kotak putih -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@color/text"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="20dp"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp">
+        android:background="@color/text">
 
-        <!-- Search icon -->
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_search"
-            android:colorFilter="@color/bg"
-            android:layout_marginEnd="10dp"/>
-
-        <!-- Input -->
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:hint="Artis, lagu, atau podcast"
-            android:textColor="@color/bg"
-            android:textColorHint="#767676"
-            android:textSize="14sp"
-            android:background="@null"
-            android:inputType="text"
-            android:imeOptions="actionSearch"
-            android:singleLine="true"
-            android:textStyle="bold"/>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp">
 
-        <!-- Clear button -->
-        <ImageView
-            android:id="@+id/btn_clear"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_more"
-            android:colorFilter="@color/bg"
-            android:visibility="gone"/>
-    </LinearLayout>
+            <!-- Search icon hitam -->
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_search"
+                android:layout_marginEnd="10dp"/>
+
+            <!-- Input text -->
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="Artis, lagu, atau podcast"
+                android:textColor="@color/bg"
+                android:textColorHint="#767676"
+                android:textSize="14sp"
+                android:background="@null"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:singleLine="true"
+                android:textStyle="bold"/>
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Browse label (shown when empty) -->
     <TextView
@@ -108,7 +103,7 @@
         android:padding="32dp"
         android:visibility="gone"/>
 
-    <!-- Results -->
+    <!-- Results list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_results"
         android:layout_width="match_parent"
