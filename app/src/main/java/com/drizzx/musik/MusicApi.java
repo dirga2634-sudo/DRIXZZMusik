@@ -102,9 +102,11 @@ public class MusicApi {
             for (int i = 0; i < INVIDIOUS.length; i++) {
                 String base = INVIDIOUS[(invIdx + i) % INVIDIOUS.length];
                 try {
-                    // SAMA PERSIS dengan web version
+                    // local=true = Invidious proxy stream lewat servernya sendiri
+                    // Ini kunci agar ExoPlayer bisa putar tanpa masalah CDN/IP
                     String url = base + "/api/v1/videos/" + videoId
-                        + "?fields=adaptiveFormats,formatStreams,title,author,lengthSeconds,videoThumbnails";
+                        + "?fields=adaptiveFormats,formatStreams,title,author,lengthSeconds,videoThumbnails"
+                        + "&local=true";
 
                     String body = fetchRaw(url);
 

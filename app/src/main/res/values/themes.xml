@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.DrizzxMusik" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/green</item>
-        <item name="colorPrimaryDark">@color/bg</item>
-        <item name="colorAccent">@color/green</item>
+        <item name="colorPrimaryVariant">@color/bg</item>
+        <item name="colorOnPrimary">@color/text</item>
+        <item name="colorSurface">@color/surface</item>
         <item name="android:windowBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
-        <item name="android:navigationBarColor">@color/surface</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="materialAlertDialogTheme">@style/DialogTheme</item>
-    </style>
-
-    <style name="DialogTheme" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
-        <item name="android:background">@color/surface</item>
-        <item name="android:textColor">@color/text</item>
-        <item name="colorPrimary">@color/green</item>
+        <item name="android:navigationBarColor">@color/nav_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

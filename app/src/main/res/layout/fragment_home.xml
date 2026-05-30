@@ -5,28 +5,27 @@
     android:orientation="vertical"
     android:background="@color/bg">
 
-    <!-- Top bar: Avatar + Filter pills -->
+    <!-- Top bar: avatar + filter pills -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="60dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp">
 
-        <!-- Avatar -->
         <TextView
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:text="D"
-            android:textSize="14sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/bg"
             android:gravity="center"
             android:background="@drawable/bg_avatar"
-            android:layout_marginEnd="12dp"/>
+            android:layout_marginEnd="14dp"/>
 
-        <!-- Filter pills -->
         <HorizontalScrollView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -34,7 +33,7 @@
             android:scrollbars="none">
             <LinearLayout
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="36dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
                 <TextView
@@ -46,8 +45,8 @@
                     android:textStyle="bold"
                     android:textColor="@color/bg"
                     android:gravity="center"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
                     android:background="@drawable/bg_btn_green"
                     android:layout_marginEnd="8dp"/>
                 <TextView
@@ -59,21 +58,21 @@
                     android:textStyle="bold"
                     android:textColor="@color/text"
                     android:gravity="center"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
                     android:background="@drawable/bg_pill_dark"/>
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>
 
-    <!-- Loading -->
+    <!-- Loading spinner -->
     <ProgressBar
         android:id="@+id/progress_bar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:indeterminateTint="@color/green"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="60dp"
         android:visibility="visible"/>
 
     <!-- Error state -->
@@ -83,7 +82,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
-        android:padding="32dp"
+        android:paddingTop="60dp"
         android:visibility="gone">
         <TextView
             android:layout_width="wrap_content"
@@ -96,17 +95,17 @@
             android:layout_width="wrap_content"
             android:layout_height="36dp"
             android:text="Coba Lagi"
-            android:textColor="@color/text"
+            android:textColor="@color/bg"
             android:textStyle="bold"
             android:textSize="13sp"
             android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
             android:background="@drawable/bg_btn_green"
-            android:layout_marginTop="12dp"/>
+            android:layout_marginTop="16dp"/>
     </LinearLayout>
 
-    <!-- Content: header info + list -->
+    <!-- Trending header -->
     <LinearLayout
         android:id="@+id/layout_trending_header"
         android:layout_width="match_parent"
@@ -115,14 +114,15 @@
         android:gravity="center_vertical"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
+        android:paddingTop="8dp"
         android:paddingBottom="8dp"
         android:visibility="gone">
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Trending Musik"
-            android:textSize="20sp"
+            android:text="Trending Sekarang"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="@color/text"/>
         <TextView
@@ -133,11 +133,8 @@
             android:textColor="@color/text_dim"/>
     </LinearLayout>
 
-    <!-- Refresh -->
-    <ImageView
-        android:id="@+id/btn_refresh"
-        android:layout_width="0dp"
-        android:layout_height="0dp"/>
+    <!-- hidden btn_refresh required by binding -->
+    <View android:id="@+id/btn_refresh" android:layout_width="0dp" android:layout_height="0dp"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_trending"

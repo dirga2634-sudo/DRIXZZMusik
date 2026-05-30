@@ -13,8 +13,8 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:scaleType="centerCrop"
-        android:background="@drawable/bg_thumbnail"
-        android:src="@drawable/ic_music_placeholder"/>
+        android:src="@drawable/ic_music_placeholder"
+        android:background="@drawable/bg_thumbnail"/>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -22,7 +22,7 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:layout_marginStart="12dp"
-        android:layout_marginEnd="8dp">
+        android:layout_marginEnd="4dp">
         <TextView
             android:id="@+id/tv_title"
             android:layout_width="match_parent"
@@ -45,16 +45,17 @@
 
     <TextView
         android:id="@+id/tv_duration"
-        android:layout_width="wrap_content"
+        android:layout_width="36dp"
         android:layout_height="wrap_content"
         android:textSize="11sp"
         android:textColor="@color/text_dim"
-        android:layout_marginEnd="4dp"/>
+        android:gravity="end"/>
 
     <ImageView
         android:id="@+id/btn_more"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:src="@drawable/ic_more"
-        android:padding="6dp"/>
+        android:padding="6dp"
+        android:layout_marginStart="4dp"/>
 </LinearLayout>
