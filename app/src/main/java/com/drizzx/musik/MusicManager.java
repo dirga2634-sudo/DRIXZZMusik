@@ -30,8 +30,8 @@ public class MusicManager {
 
     private ExoPlayer player;
     private Song currentSong;
-    private List<Song> queue = new ArrayList<>();
-    private int currentIndex = 0;
+    private List<Song> queue     = new ArrayList<>();
+    private int currentIndex     = 0;
     private List<Song> favorites = new ArrayList<>();
     private List<Playlist> playlists = new ArrayList<>();
     private SharedPreferences prefs;
@@ -44,8 +44,8 @@ public class MusicManager {
     }
 
     private OnPlayerStateChanged listener;
-    private MusicManager() {}
 
+    private MusicManager() {}
     public static MusicManager getInstance() {
         if (instance == null) instance = new MusicManager();
         return instance;
@@ -56,25 +56,25 @@ public class MusicManager {
         loadFavorites();
         loadPlaylists();
 
-        // HTTP factory dengan headers lengkap
+        // Header WAJIB — ini yang bikin YouTube CDN mau serve stream
+        // Web pakai fetch() browser yang otomatis set Referer dari youtube.com
+        // ExoPlayer harus set manual
         Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "*/*");
-        headers.put("Accept-Language", "id-ID,id;q=0.9,en;q=0.8");
-        headers.put("Origin", "https://www.youtube.com");
-        headers.put("Referer", "https://www.youtube.com/");
+        headers.put("Referer",          "https://www.youtube.com/");
+        headers.put("Origin",           "https://www.youtube.com");
+        headers.put("Accept",           "*/*");
+        headers.put("Accept-Language",  "id-ID,id;q=0.9,en;q=0.8");
 
-        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36")
+        DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 Chrome/91.0 Mobile Safari/537.36")
             .setDefaultRequestProperties(headers)
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(20000)
-            .setKeepPostFor302Redirects(true);
-
-        DefaultDataSource.Factory dsFactory = new DefaultDataSource.Factory(ctx, httpFactory);
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(20_000);
 
         player = new ExoPlayer.Builder(ctx)
-            .setMediaSourceFactory(new DefaultMediaSourceFactory(dsFactory))
+            .setMediaSourceFactory(
+                new DefaultMediaSourceFactory(new DefaultDataSource.Factory(ctx, http)))
             .build();
 
         player.addListener(new Player.Listener() {
@@ -89,7 +89,7 @@ public class MusicManager {
             @Override
             public void onPlayerError(PlaybackException error) {
                 Log.e(TAG, "Player error: " + error.getMessage());
-                // Auto skip kalau error
+                // Auto next saat error
                 playNext();
             }
         });
@@ -98,44 +98,37 @@ public class MusicManager {
     public void setListener(OnPlayerStateChanged l) { this.listener = l; }
 
     public void playSong(Song song) {
-        if (player == null || song == null || song.streamUrl == null || song.streamUrl.isEmpty()) {
-            Log.e(TAG, "Cannot play: " + (song == null ? "null song" : "empty stream URL"));
+        if (player == null || song == null
+            || song.streamUrl == null || song.streamUrl.isEmpty()) {
+            Log.e(TAG, "Cannot play: " + (song == null ? "null" : "empty URL"));
             return;
         }
         currentSong = song;
-        try {
-            Log.d(TAG, "Playing: " + song.title);
-            Log.d(TAG, "URL: " + song.streamUrl.substring(0, Math.min(80, song.streamUrl.length())));
-            player.setMediaItem(MediaItem.fromUri(song.streamUrl));
-            player.prepare();
-            player.play();
-            if (listener != null) listener.onSongChanged(song);
-        } catch (Exception e) {
-            Log.e(TAG, "Play error: " + e.getMessage());
-        }
+        Log.d(TAG, "Playing: " + song.title);
+        Log.d(TAG, "URL: " + song.streamUrl.substring(0, Math.min(100, song.streamUrl.length())));
+        player.setMediaItem(MediaItem.fromUri(song.streamUrl));
+        player.prepare();
+        player.play();
+        if (listener != null) listener.onSongChanged(song);
     }
 
-    public void playQueue(List<Song> songs, int startIndex) {
+    public void playQueue(List<Song> songs, int idx) {
         queue = new ArrayList<>(songs);
-        currentIndex = Math.max(0, Math.min(startIndex, songs.size() - 1));
+        currentIndex = Math.max(0, Math.min(idx, songs.size()-1));
         playSong(queue.get(currentIndex));
     }
 
     public void playPause() {
         if (player == null) return;
-        if (player.isPlaying()) player.pause();
-        else player.play();
+        if (player.isPlaying()) player.pause(); else player.play();
     }
 
     public void playNext() {
         if (queue.isEmpty()) return;
         currentIndex = (currentIndex + 1) % queue.size();
         Song next = queue.get(currentIndex);
-        // Kalau streamUrl belum ada, skip
-        if (next.streamUrl == null || next.streamUrl.isEmpty()) {
-            currentIndex = (currentIndex + 1) % queue.size();
-        }
-        playSong(queue.get(currentIndex));
+        if (next.streamUrl == null || next.streamUrl.isEmpty()) return;
+        playSong(next);
     }
 
     public void playPrev() {
@@ -145,39 +138,44 @@ public class MusicManager {
         playSong(queue.get(currentIndex));
     }
 
-    public void seekTo(long ms)  { if (player != null) player.seekTo(ms); }
-    public boolean isPlaying()   { return player != null && player.isPlaying(); }
-    public long getPosition()    { return player != null ? player.getCurrentPosition() : 0; }
-    public long getDuration()    { return player != null ? player.getDuration() : 0; }
-    public Song getCurrentSong() { return currentSong; }
-    public ExoPlayer getPlayer() { return player; }
+    public void seekTo(long ms)   { if (player != null) player.seekTo(ms); }
+    public boolean isPlaying()    { return player != null && player.isPlaying(); }
+    public long getPosition()     { return player != null ? player.getCurrentPosition() : 0; }
+    public long getDuration()     { return player != null ? player.getDuration() : 0; }
+    public Song getCurrentSong()  { return currentSong; }
+    public ExoPlayer getPlayer()  { return player; }
 
-    // Favorites
-    public void toggleFavorite(Song song) {
-        if (isFavorite(song.id)) favorites.removeIf(s -> s.id.equals(song.id));
-        else favorites.add(song);
+    // ── Favorites ─────────────────────────────────────────
+
+    public void toggleFavorite(Song s) {
+        if (isFavorite(s.id)) favorites.removeIf(f -> f.id.equals(s.id));
+        else favorites.add(s);
         saveFavorites();
     }
     public boolean isFavorite(String id) { return favorites.stream().anyMatch(s -> s.id.equals(id)); }
-    public List<Song> getFavorites() { return favorites; }
-    private void saveFavorites() { prefs.edit().putString("favorites", gson.toJson(favorites)).apply(); }
+    public List<Song> getFavorites()     { return favorites; }
+    private void saveFavorites() { prefs.edit().putString("fav", gson.toJson(favorites)).apply(); }
     private void loadFavorites() {
         Type t = new TypeToken<List<Song>>(){}.getType();
-        favorites = gson.fromJson(prefs.getString("favorites", "[]"), t);
+        favorites = gson.fromJson(prefs.getString("fav","[]"), t);
         if (favorites == null) favorites = new ArrayList<>();
     }
 
-    // Playlists
+    // ── Playlists ─────────────────────────────────────────
+
     public List<Playlist> getPlaylists() { return playlists; }
-    public void createPlaylist(String name) { playlists.add(new Playlist("pl_" + System.currentTimeMillis(), name)); savePlaylists(); }
-    public void addToPlaylist(String plId, Song song) {
-        for (Playlist pl : playlists) if (pl.id.equals(plId)) { pl.songs.add(song); break; }
+    public void createPlaylist(String name) {
+        playlists.add(new Playlist("pl_" + System.currentTimeMillis(), name));
         savePlaylists();
     }
-    private void savePlaylists() { prefs.edit().putString("playlists", gson.toJson(playlists)).apply(); }
+    public void addToPlaylist(String plId, Song song) {
+        for (Playlist p : playlists) if (p.id.equals(plId)) { p.songs.add(song); break; }
+        savePlaylists();
+    }
+    private void savePlaylists() { prefs.edit().putString("pl", gson.toJson(playlists)).apply(); }
     private void loadPlaylists() {
         Type t = new TypeToken<List<Playlist>>(){}.getType();
-        playlists = gson.fromJson(prefs.getString("playlists", "[]"), t);
+        playlists = gson.fromJson(prefs.getString("pl","[]"), t);
         if (playlists == null) playlists = new ArrayList<>();
     }
 
