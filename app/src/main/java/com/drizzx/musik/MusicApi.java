@@ -22,11 +22,10 @@ public class MusicApi {
 
     // Sama persis dengan web
     private static final String[] INVIDIOUS = {
-        "https://inv.nadeko.net",
-        "https://invidious.nerdvpn.de",
-        "https://invidious.privacyredirect.com",
-        "https://iv.melmac.space",
-        "https://invidious.io.lol"
+        "https://invidious.fdn.fr",
+        "https://yewtu.be",
+        "https://inv.tux.pizza",
+        "https://invidious.projectsegfau.lt"
     };
     private static int invIdx = 0;
 
