@@ -14,16 +14,16 @@ class handler(BaseHTTPRequestHandler):
                 data = json.loads(r.read())
             songs = []
             for item in data.get('items', []):
-                s  = item.get('snippet', {})
+                s = item.get('snippet', {})
                 cd = item.get('contentDetails', {})
-                t  = s.get('thumbnails', {})
+                t = s.get('thumbnails', {})
                 th = (t.get('medium') or t.get('default') or {}).get('url', '')
                 songs.append({
-                    'id':        item['id'],
-                    'title':     s.get('title', ''),
-                    'artist':    s.get('channelTitle', ''),
+                    'id': item['id'],
+                    'title': s.get('title', ''),
+                    'artist': s.get('channelTitle', ''),
                     'thumbnail': th,
-                    'duration':  _iso(cd.get('duration', '')),
+                    'duration': _iso(cd.get('duration', '')),
                 })
             self._ok({'songs': songs})
         except Exception as e:

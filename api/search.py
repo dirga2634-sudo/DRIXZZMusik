@@ -22,11 +22,11 @@ class handler(BaseHTTPRequestHandler):
                 t = s.get('thumbnails', {})
                 th = (t.get('medium') or t.get('default') or {}).get('url', '')
                 songs.append({
-                    'id':        item['id']['videoId'],
-                    'title':     s.get('title', ''),
-                    'artist':    s.get('channelTitle', ''),
+                    'id': item['id']['videoId'],
+                    'title': s.get('title', ''),
+                    'artist': s.get('channelTitle', ''),
                     'thumbnail': th,
-                    'duration':  '',
+                    'duration': '',
                 })
             self._ok({'songs': songs})
         except Exception as e:

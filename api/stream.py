@@ -24,10 +24,10 @@ class handler(BaseHTTPRequestHandler):
             if not url and info.get('requested_formats'):
                 url = info['requested_formats'][0].get('url', '')
             self._ok({
-                'url':       url,
-                'title':     info.get('title', ''),
-                'artist':    info.get('uploader', ''),
-                'duration':  info.get('duration', 0),
+                'url': url,
+                'title': info.get('title', ''),
+                'artist': info.get('uploader', ''),
+                'duration': info.get('duration', 0),
                 'thumbnail': info.get('thumbnail', ''),
             })
         except Exception as e:
