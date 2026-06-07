@@ -4,10 +4,5 @@
       "runtime": "python3.9",
       "maxDuration": 60
     }
-  },
-  "rewrites": [
-    { "source": "/api/stream",   "destination": "/api/stream" },
-    { "source": "/api/search",   "destination": "/api/search" },
-    { "source": "/api/trending", "destination": "/api/trending" }
-  ]
+  }
 }
