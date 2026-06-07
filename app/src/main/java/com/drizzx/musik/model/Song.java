@@ -10,6 +10,7 @@ public class Song {
     public String thumbnailUrl;
     public String lyrics;
     public boolean isFavorite;
+    public String invidiousBase; // server yang berhasil, untuk ExoPlayer headers
 
     public Song() {}
 

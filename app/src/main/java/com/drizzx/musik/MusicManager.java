@@ -44,7 +44,6 @@ public class MusicManager {
     }
 
     private OnPlayerStateChanged listener;
-
     private MusicManager() {}
     public static MusicManager getInstance() {
         if (instance == null) instance = new MusicManager();
@@ -55,13 +54,24 @@ public class MusicManager {
         prefs = ctx.getSharedPreferences("drizzx_musik", Context.MODE_PRIVATE);
         loadFavorites();
         loadPlaylists();
+        buildPlayer(ctx, null);
+    }
 
-        // Header WAJIB — ini yang bikin YouTube CDN mau serve stream
-        // Web pakai fetch() browser yang otomatis set Referer dari youtube.com
-        // ExoPlayer harus set manual
+    // Bangun ExoPlayer dengan headers yang sesuai
+    // Karena sekarang kita akses Invidious (bukan YouTube CDN langsung),
+    // headernya harus sesuai untuk Invidious server
+    private void buildPlayer(Context ctx, String invidiousBase) {
+        if (player != null) {
+            player.release();
+            player = null;
+        }
+
         Map<String, String> headers = new HashMap<>();
-        headers.put("Referer",          "https://www.youtube.com/");
-        headers.put("Origin",           "https://www.youtube.com");
+        if (invidiousBase != null && !invidiousBase.isEmpty()) {
+            // Headers untuk akses Invidious proxy
+            headers.put("Referer",  invidiousBase + "/");
+            headers.put("Origin",   invidiousBase);
+        }
         headers.put("Accept",           "*/*");
         headers.put("Accept-Language",  "id-ID,id;q=0.9,en;q=0.8");
 
@@ -70,7 +80,7 @@ public class MusicManager {
             .setDefaultRequestProperties(headers)
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(20_000);
+            .setReadTimeoutMs(30_000); // lebih panjang untuk proxy stream
 
         player = new ExoPlayer.Builder(ctx)
             .setMediaSourceFactory(
@@ -88,24 +98,40 @@ public class MusicManager {
             }
             @Override
             public void onPlayerError(PlaybackException error) {
-                Log.e(TAG, "Player error: " + error.getMessage());
-                // Auto next saat error
+                Log.e(TAG, "Player error code=" + error.errorCode + " msg=" + error.getMessage());
                 playNext();
             }
         });
     }
 
+    // Context disimpan untuk rebuild player
+    private Context appCtx;
+    public void init2(Context ctx) {
+        appCtx = ctx.getApplicationContext();
+        init(ctx);
+    }
+
     public void setListener(OnPlayerStateChanged l) { this.listener = l; }
 
     public void playSong(Song song) {
-        if (player == null || song == null
-            || song.streamUrl == null || song.streamUrl.isEmpty()) {
-            Log.e(TAG, "Cannot play: " + (song == null ? "null" : "empty URL"));
+        if (song == null || song.streamUrl == null || song.streamUrl.isEmpty()) {
+            Log.e(TAG, "Cannot play: empty URL");
             return;
         }
+
+        // Rebuild player dengan headers yang sesuai Invidious server lagu ini
+        if (appCtx != null && song.invidiousBase != null && !song.invidiousBase.isEmpty()) {
+            if (currentSong == null || !song.invidiousBase.equals(
+                    currentSong.invidiousBase != null ? currentSong.invidiousBase : "")) {
+                buildPlayer(appCtx, song.invidiousBase);
+            }
+        }
+
         currentSong = song;
         Log.d(TAG, "Playing: " + song.title);
-        Log.d(TAG, "URL: " + song.streamUrl.substring(0, Math.min(100, song.streamUrl.length())));
+        Log.d(TAG, "Stream: " + song.streamUrl);
+
+        if (player == null) return;
         player.setMediaItem(MediaItem.fromUri(song.streamUrl));
         player.prepare();
         player.play();
@@ -127,7 +153,9 @@ public class MusicManager {
         if (queue.isEmpty()) return;
         currentIndex = (currentIndex + 1) % queue.size();
         Song next = queue.get(currentIndex);
-        if (next.streamUrl == null || next.streamUrl.isEmpty()) return;
+        if (next.streamUrl == null || next.streamUrl.isEmpty()) {
+            playNext(); return;
+        }
         playSong(next);
     }
 
@@ -145,8 +173,6 @@ public class MusicManager {
     public Song getCurrentSong()  { return currentSong; }
     public ExoPlayer getPlayer()  { return player; }
 
-    // ── Favorites ─────────────────────────────────────────
-
     public void toggleFavorite(Song s) {
         if (isFavorite(s.id)) favorites.removeIf(f -> f.id.equals(s.id));
         else favorites.add(s);
@@ -161,15 +187,9 @@ public class MusicManager {
         if (favorites == null) favorites = new ArrayList<>();
     }
 
-    // ── Playlists ─────────────────────────────────────────
-
     public List<Playlist> getPlaylists() { return playlists; }
     public void createPlaylist(String name) {
         playlists.add(new Playlist("pl_" + System.currentTimeMillis(), name));
-        savePlaylists();
-    }
-    public void addToPlaylist(String plId, Song song) {
-        for (Playlist p : playlists) if (p.id.equals(plId)) { p.songs.add(song); break; }
         savePlaylists();
     }
     private void savePlaylists() { prefs.edit().putString("pl", gson.toJson(playlists)).apply(); }
