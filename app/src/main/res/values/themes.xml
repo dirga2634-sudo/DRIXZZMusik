@@ -1,13 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.DrizzxMusik" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/green</item>
-        <item name="colorPrimaryVariant">@color/bg</item>
-        <item name="colorOnPrimary">@color/text</item>
-        <item name="colorSurface">@color/surface</item>
-        <item name="android:windowBackground">@color/bg</item>
-        <item name="android:statusBarColor">@color/bg</item>
-        <item name="android:navigationBarColor">@color/nav_bg</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Tema utama aplikasi: Material 3, dipaksa gelap (bukan DayNight) dengan aksen biru -->
+    <style name="Theme.MusicPlayer" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- Warna utama -->
+        <item name="colorPrimary">@color/blue_accent</item>
+        <item name="colorOnPrimary">@color/text_on_accent</item>
+        <item name="colorPrimaryContainer">@color/blue_accent_dark</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+
+        <!-- Warna sekunder -->
+        <item name="colorSecondary">@color/blue_accent_light</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <item name="colorSecondaryContainer">@color/surface_dark_elevated</item>
+        <item name="colorOnSecondaryContainer">@color/white</item>
+
+        <!-- Permukaan & latar belakang -->
+        <item name="android:colorBackground">@color/background_dark</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        <item name="colorSurface">@color/surface_dark</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/surface_dark_elevated</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="colorOutline">@color/divider</item>
+
+        <!-- Status & navigation bar -->
+        <item name="android:statusBarColor">@color/background_dark</item>
+        <item name="android:navigationBarColor">@color/background_dark</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
+
+        <!-- Ripple global memakai aksen biru transparan -->
+        <item name="colorControlHighlight">@color/blue_accent_ripple</item>
+        <item name="android:windowBackground">@color/background_dark</item>
+    </style>
+
+    <!-- Tema layar Splash: penuh gambar/gradient, tanpa action bar -->
+    <style name="Theme.MusicPlayer.Splash" parent="Theme.MusicPlayer">
+        <item name="android:windowBackground">@drawable/bg_splash_gradient</item>
+        <item name="android:statusBarColor">@color/splash_gradient_start</item>
+        <item name="android:navigationBarColor">@color/splash_gradient_end</item>
+    </style>
+
+    <!-- Style tombol play/pause besar berbentuk lingkaran -->
+    <style name="PlayButtonStyle">
+        <item name="android:background">@drawable/bg_circle_ripple</item>
+        <item name="android:padding">18dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:contentDescription">@string/action_play</item>
+    </style>
+
+    <!-- Style tombol transport kecil (next/prev/forward/rewind) -->
+    <style name="TransportButtonStyle">
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <!-- Sudut membulat untuk cover album di layar Now Playing -->
+    <style name="RoundedNowPlayingArt">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <!-- Sudut membulat untuk cover album di daftar lagu (item_song, mini player) -->
+    <style name="RoundedListArt">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+
+    <!-- Style judul toolbar -->
+    <style name="ToolbarTitleStyle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/text_size_title_medium</item>
+        <item name="android:textStyle">bold</item>
     </style>
 </resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Aturan backup untuk Android 6.0-11 (Auto Backup API 23-30).
+    Kita sertakan preferensi dan database playlist agar favorit &
+    playlist ikut ter-backup, namun file cache/gambar tidak perlu.
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="music_player_prefs.xml" />
+    <include domain="database" path="playlists.db" />
+</full-backup-content>

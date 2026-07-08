@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#121212</color>
-    <color name="surface">#181818</color>
-    <color name="surface2">#282828</color>
-    <color name="surface3">#3E3E3E</color>
-    <color name="green">#1DB954</color>
-    <color name="green_bright">#1ed760</color>
-    <color name="text">#FFFFFF</color>
-    <color name="text_dim">#B3B3B3</color>
-    <color name="text_dark">#535353</color>
-    <color name="colorPrimary">#1DB954</color>
-    <color name="colorPrimaryDark">#000000</color>
-    <color name="colorAccent">#1DB954</color>
-    <color name="mini_player_bg">#282828</color>
-    <color name="nav_bg">#000000</color>
+    <!-- Warna dasar -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Latar belakang gelap (Dark Theme) -->
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    <color name="surface_dark_elevated">#262626</color>
+    <color name="surface_dark_pressed">#2C2C2C</color>
+
+    <!-- Aksen biru -->
+    <color name="blue_accent">#2196F3</color>
+    <color name="blue_accent_light">#64B5F6</color>
+    <color name="blue_accent_dark">#1565C0</color>
+    <color name="blue_accent_ripple">#402196F3</color>
+
+    <!-- Teks -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B3B3B3</color>
+    <color name="text_disabled">#6E6E6E</color>
+    <color name="text_on_accent">#FFFFFF</color>
+
+    <!-- Lainnya -->
+    <color name="divider">#2A2A2A</color>
+    <color name="error">#CF6679</color>
+    <color name="icon_inactive">#8A8A8A</color>
+    <color name="favorite_red">#E53E5A</color>
+    <color name="splash_gradient_start">#1565C0</color>
+    <color name="splash_gradient_end">#0D1B2A</color>
 </resources>

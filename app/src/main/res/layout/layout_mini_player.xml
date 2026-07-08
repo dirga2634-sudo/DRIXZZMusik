@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/miniPlayerContainer"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/mini_player_height"
+    android:background="@color/surface_dark_elevated"
+    android:clickable="true"
+    android:focusable="true"
+    android:elevation="@dimen/elevation_mini_player"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <ProgressBar
+        android:id="@+id/miniPlayerProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="2dp"
+        android:max="100"
+        android:progress="35"
+        android:progressTint="@color/blue_accent"
+        android:progressBackgroundTint="@color/divider"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/miniPlayerArt"
+        android:layout_width="@dimen/album_art_size_mini_player"
+        android:layout_height="@dimen/album_art_size_mini_player"
+        android:layout_marginStart="@dimen/spacing_sm"
+        android:scaleType="centerCrop"
+        android:background="@color/surface_dark"
+        android:contentDescription="@string/cd_album_art"
+        android:src="@drawable/ic_music_note"
+        android:padding="10dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/miniPlayerTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:ellipsize="marquee"
+        android:singleLine="true"
+        android:textColor="@color/text_primary"
+        android:textSize="@dimen/text_size_body"
+        android:textStyle="bold"
+        tools:text="Song Title Here"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/miniPlayerArtist"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintStart_toEndOf="@id/miniPlayerArt"
+        app:layout_constraintEnd_toStartOf="@id/miniPlayerPlayPause" />
+
+    <TextView
+        android:id="@+id/miniPlayerArtist"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_sm"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/text_secondary"
+        android:textSize="@dimen/text_size_caption"
+        tools:text="Artist Name"
+        app:layout_constraintTop_toBottomOf="@id/miniPlayerTitle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/miniPlayerArt"
+        app:layout_constraintEnd_toStartOf="@id/miniPlayerPlayPause" />
+
+    <ImageButton
+        android:id="@+id/miniPlayerPlayPause"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="@dimen/spacing_xs"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/action_play"
+        android:padding="8dp"
+        android:src="@drawable/ic_play"
+        app:tint="@color/text_primary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/miniPlayerNext" />
+
+    <ImageButton
+        android:id="@+id/miniPlayerNext"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="@dimen/spacing_sm"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/action_next"
+        android:padding="8dp"
+        android:src="@drawable/ic_next"
+        app:tint="@color/text_primary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
