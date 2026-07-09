@@ -78,6 +78,16 @@
     <string name="settings_sort_name_option">Name</string>
     <string name="settings_sort_date_option">Date Added</string>
     <string name="settings_library_section">Library</string>
+    <string name="settings_background_section">Background Playback</string>
+    <string name="settings_battery_optimization">Disable Battery Optimization</string>
+    <string name="settings_battery_optimization_desc">Required so playback isn\'t killed when the screen is off</string>
+    <string name="settings_battery_optimization_done">Already allowed \u2713</string>
+    <string name="settings_autostart">Open Autostart Settings</string>
+    <string name="settings_autostart_desc">Some phones (Infinix, Xiaomi, Oppo, Vivo, etc.) also need Autostart/Protected Apps enabled manually for this app</string>
+    <string name="settings_allow_background">Open App Battery Settings</string>
+    <string name="settings_allow_background_desc">On Infinix specifically, look for \"Battery Saver\" or \"Battery\" here and enable \"Allow Background Running\"</string>
+    <string name="allow_background_dialog_message">On the next screen, tap \"Battery\" or \"Battery Saver\", then turn on \"Allow Background Running\" (Berjalan di Latar Belakang). Also check \"Permissions\" for a toggle called \"Pause app activity if unused\" and turn that OFF.</string>
+    <string name="autostart_not_found_message">Couldn\'t find an autostart page automatically for this phone. Look for \"Autostart\", \"Protected Apps\", or \"Phone Manager\" in your phone\'s Settings or Security app, then enable it for Music Player.</string>
     <string name="settings_show_file_size">Show File Size</string>
     <string name="settings_show_file_size_desc">Display file size next to each song in the list</string>
     <string name="settings_reset_favorites">Clear All Favorites</string>

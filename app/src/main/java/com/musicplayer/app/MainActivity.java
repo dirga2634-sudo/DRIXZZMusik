@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.musicplayer.app.adapter.MusicAdapter;
+import com.musicplayer.app.helper.BatteryOptimizationHelper;
 import com.musicplayer.app.helper.MediaStoreHelper;
 import com.musicplayer.app.helper.PermissionHelper;
 import com.musicplayer.app.helper.PrefsManager;
@@ -174,7 +175,33 @@ public class MainActivity extends BaseMusicActivity implements MusicAdapter.OnSo
             allSongs.addAll(songs);
             scanProgressBar.setVisibility(View.GONE);
             applyFilterAndSort();
+            maybeShowBatteryOptimizationPrompt();
         });
+    }
+
+    /**
+     * Ditampilkan sekali saja (dilacak lewat PrefsManager) supaya pengguna
+     * langsung diarahkan menonaktifkan battery optimization sejak awal,
+     * alih-alih baru sadar setelah pemutaran musik di background berhenti
+     * sendiri di tengah jalan — terutama penting di HP dengan skin custom
+     * seperti Infinix/XOS, MIUI, ColorOS, dll.
+     */
+    private void maybeShowBatteryOptimizationPrompt() {
+        if (prefsManager.hasShownBatteryPrompt()) {
+            return;
+        }
+        if (BatteryOptimizationHelper.isIgnoringBatteryOptimizations(this)) {
+            prefsManager.setBatteryPromptShown();
+            return;
+        }
+        prefsManager.setBatteryPromptShown();
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.settings_background_section)
+                .setMessage(R.string.settings_battery_optimization_desc)
+                .setPositiveButton(R.string.settings_title, (d, w) ->
+                        startActivity(new Intent(this, SettingsActivity.class)))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void applyFilterAndSort() {

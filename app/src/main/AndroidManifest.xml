@@ -19,6 +19,11 @@
     <!-- Menjaga CPU tetap aktif selama audio diputar dengan layar mati -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Dipakai untuk meminta pengecualian battery optimization, supaya
+         pemutaran musik di background tidak dimatikan paksa oleh sistem
+         (khususnya HP dengan skin custom seperti Infinix/XOS, MIUI, dll) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

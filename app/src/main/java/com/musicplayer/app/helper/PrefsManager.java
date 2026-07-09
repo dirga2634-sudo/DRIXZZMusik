@@ -26,6 +26,7 @@ public class PrefsManager {
     private static final String KEY_SHUFFLE_ENABLED = "shuffle_enabled";
     private static final String KEY_REPEAT_MODE = "repeat_mode";
     private static final String KEY_SHOW_FILE_SIZE = "show_file_size";
+    private static final String KEY_BATTERY_PROMPT_SHOWN = "battery_prompt_shown";
 
     private final SharedPreferences prefs;
 
@@ -108,5 +109,13 @@ public class PrefsManager {
 
     public void setShowFileSizeEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_SHOW_FILE_SIZE, enabled).apply();
+    }
+
+    public boolean hasShownBatteryPrompt() {
+        return prefs.getBoolean(KEY_BATTERY_PROMPT_SHOWN, false);
+    }
+
+    public void setBatteryPromptShown() {
+        prefs.edit().putBoolean(KEY_BATTERY_PROMPT_SHOWN, true).apply();
     }
 }
