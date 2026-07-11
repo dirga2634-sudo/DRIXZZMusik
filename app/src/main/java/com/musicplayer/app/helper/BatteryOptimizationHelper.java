@@ -65,23 +65,41 @@ public final class BatteryOptimizationHelper {
      * halaman App Info standar.
      */
     public static boolean openAutoStartSettings(Context context) {
+        // Coba dulu Intent resmi Samsung (dari dokumentasi developer.samsung.com) untuk
+        // langsung membuka daftar "Never sleeping apps" -- lebih reliable daripada
+        // menebak nama activity seperti merek lain di bawah.
+        if (tryStartSamsungNeverSleepingApps(context)) {
+            return true;
+        }
+
         String[][] candidates = new String[][]{
                 // Infinix / Tecno / itel (Transsion - XOS/HiOS), termasuk HP Dirga
                 {"com.transsion.mobilebutler", "com.transsion.mobilebutler.MainActivity"},
                 {"com.transsion.mobilebutler", "com.transsion.mobilebutler.activity.MainActivity"},
-                // Xiaomi / Redmi / Poco (MIUI)
+                // Xiaomi / Redmi / Poco (MIUI / HyperOS)
                 {"com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"},
-                // Oppo / Realme (ColorOS)
+                // Oppo / Realme (ColorOS / Realme UI) -- termasuk HP bapaknya Dirga
                 {"com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"},
                 {"com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"},
-                // Vivo (FuntouchOS)
+                {"com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"},
+                // Vivo / iQOO (FuntouchOS / OriginOS) -- termasuk HP adiknya Dirga
                 {"com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"},
-                // Huawei / Honor (EMUI)
+                {"com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"},
+                // Huawei / Honor (EMUI / MagicOS)
                 {"com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                {"com.hihonor.systemmanager", "com.hihonor.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                // Samsung (One UI) -- fallback kalau Intent resmi di atas gagal
+                {"com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"},
+                // OnePlus (OxygenOS)
+                {"com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"},
+                // Meizu (Flyme)
+                {"com.meizu.safe", "com.meizu.safe.permission.PermissionMainActivity"},
                 // Asus (ZenUI)
                 {"com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity"},
                 // Letv
                 {"com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"},
+                // Lenovo / Motorola (beberapa model)
+                {"com.lenovo.security", "com.lenovo.security.purebackground.PureBackgroundActivity"},
         };
 
         for (String[] candidate : candidates) {
@@ -90,6 +108,25 @@ public final class BatteryOptimizationHelper {
             }
         }
         return false;
+    }
+
+    /**
+     * Deep link resmi Samsung (didokumentasikan di developer.samsung.com) untuk
+     * langsung membuka layar "Never sleeping apps" di Device Care, tempat
+     * pengguna menambahkan Music Player supaya tidak pernah ditidurkan One UI.
+     */
+    private static boolean tryStartSamsungNeverSleepingApps(Context context) {
+        try {
+            Intent intent = new Intent();
+            intent.setAction("com.samsung.android.sm.ACTION_OPEN_CHECKABLE_LISTACTIVITY");
+            intent.setPackage("com.samsung.android.lool");
+            intent.putExtra("activity_type", 2); // 0 = sleeping apps, 1 = deep sleeping apps, 2 = never sleeping apps
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean tryStartActivity(Context context, String packageName, String className) {
