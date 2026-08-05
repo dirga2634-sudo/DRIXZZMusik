@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_web"
+        android:icon="@drawable/ic_browser"
+        android:title="@string/nav_browser" />
+    <item
+        android:id="@+id/nav_optimizer"
+        android:icon="@drawable/ic_speed"
+        android:title="@string/nav_optimizer" />
+</menu>

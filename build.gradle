@@ -1,8 +1,3 @@
-// Top-level build file. Konfigurasi bersama untuk semua modul ada di sini.
 plugins {
     id 'com.android.application' version '8.7.2' apply false
-}
-
-task clean(type: Delete) {
-    delete rootProject.buildDir
 }
