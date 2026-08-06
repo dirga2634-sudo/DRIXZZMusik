@@ -3,19 +3,18 @@ package com.webtools.optimizer;
 import android.os.Bundle;
 import android.view.MenuItem;
 
-import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.webtools.optimizer.databinding.ActivityMainBinding;
+import com.webtools.optimizer.fragment.GamesFragment;
 import com.webtools.optimizer.fragment.OptimizerFragment;
-import com.webtools.optimizer.fragment.WebFragment;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
-    private final WebFragment webFragment = new WebFragment();
+    private final GamesFragment gamesFragment = new GamesFragment();
     private final OptimizerFragment optimizerFragment = new OptimizerFragment();
     private Fragment activeFragment;
 
@@ -29,28 +28,16 @@ public class MainActivity extends AppCompatActivity {
             getSupportFragmentManager().beginTransaction()
                     .add(R.id.fragment_container, optimizerFragment, "optimizer")
                     .hide(optimizerFragment)
-                    .add(R.id.fragment_container, webFragment, "web")
+                    .add(R.id.fragment_container, gamesFragment, "games")
                     .commit();
         }
-        activeFragment = webFragment;
+        activeFragment = gamesFragment;
 
         binding.bottomNav.setOnItemSelectedListener(this::onNavItemSelected);
-
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (activeFragment == webFragment && webFragment.handleBackPressed()) {
-                    return;
-                }
-                setEnabled(false);
-                getOnBackPressedDispatcher().onBackPressed();
-                setEnabled(true);
-            }
-        });
     }
 
     private boolean onNavItemSelected(@NonNull MenuItem item) {
-        Fragment target = item.getItemId() == R.id.nav_optimizer ? optimizerFragment : webFragment;
+        Fragment target = item.getItemId() == R.id.nav_optimizer ? optimizerFragment : gamesFragment;
         if (target == activeFragment) return true;
 
         getSupportFragmentManager().beginTransaction()

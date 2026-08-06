@@ -1,19 +1,27 @@
 <resources>
-    <string name="app_name">Web Optimizer</string>
+    <string name="app_name">Game Booster</string>
 
-    <string name="nav_browser">Browser</string>
+    <string name="nav_games">Games</string>
     <string name="nav_optimizer">Optimizer</string>
-
-    <string name="hint_url">Masukkan alamat website...</string>
-    <string name="nav_back">Kembali</string>
-    <string name="nav_forward">Maju</string>
-    <string name="nav_refresh">Muat ulang</string>
 
     <string name="ram_manager_title">RAM Manager</string>
     <string name="ram_manager_desc">Bebaskan memori lewat API resmi Android</string>
     <string name="btn_boost_now">Boost Sekarang</string>
 
     <string name="clear_cache_title">Clear Cache</string>
-    <string name="clear_cache_desc">Hapus file cache aplikasi &amp; WebView</string>
+    <string name="clear_cache_desc">Hapus file cache aplikasi</string>
     <string name="btn_clean_now">Bersihkan Sekarang</string>
+
+    <string name="boost_status_cache">Membersihkan cache...</string>
+    <string name="boost_status_ram">Membebaskan RAM...</string>
+    <string name="boost_status_background">Menutup aplikasi latar belakang...</string>
+    <string name="boost_status_ready">Siap meluncur!</string>
+    <string name="boost_launch_failed">Gagal membuka aplikasi</string>
+
+    <string name="overlay_title">Overlay Performa</string>
+    <string name="overlay_desc">FPS, baterai &amp; jaringan real-time di atas game</string>
+    <string name="overlay_channel_name">Overlay Performa Aktif</string>
+    <string name="overlay_notif_title">Overlay performa aktif</string>
+    <string name="overlay_notif_text">Menampilkan FPS, baterai, jaringan di atas layar</string>
+    <string name="overlay_notif_stop">Matikan</string>
 </resources>

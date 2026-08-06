@@ -34,5 +34,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: web-optimizer-debug
+          name: game-booster-debug
           path: app/build/outputs/apk/debug/*.apk
