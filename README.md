@@ -29,6 +29,13 @@ Widget overlay bisa di-drag ke mana aja di layar, ada tombol X buat matiin langs
 ## Fix crash overlay
 Overlay sempat force-close pas diaktifkan. Sekarang proses start overlay (`OverlayService.onCreate`) dibungkus try-catch -- kalau ada masalah, overlay gagal aktif dengan aman (toast + log) instead of nge-crash seluruh app. Juga nambahin `startForeground` versi eksplisit dengan tipe `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` khusus buat Android 14+, gak cuma mengandalkan deklarasi manifest doang.
 
+## Fix crash overlay (round 2)
+Percobaan pertama (try-catch di awal `onCreate`) ternyata gak cukup -- ada callback async (FPS/network/battery) yang jalan BELAKANGAN, di luar cakupan try-catch itu, jadi kalau ada yang gagal di situ tetap nge-crash. Sekarang:
+- Setiap callback (`frameCallback`, `networkSampler`, `batteryReceiver`) punya try-catch masing-masing, nangkep `Throwable` (bukan cuma `Exception`, biar `Error` juga ketangkep).
+- Callback berhenti re-posting diri sendiri begitu `isRunning=false`, gak ada loop nyangkut.
+- **Crash logger global** (`GameBoosterApp` + `CrashHandler`) -- kalau ADA crash yang lolos dari semua proteksi di atas, detailnya otomatis ke-tulis ke file di `Android/data/com.webtools.optimizer/files/crash_yyyyMMdd_HHmmss.txt`. Bisa dibuka pakai ZArchiver/file manager apapun, gak butuh ADB/logcat.
+- Buang pemanggilan `startForeground` versi 3-argumen (yang paling baru & paling gak pasti), balik ke versi 2-argumen yang lebih standar, biar area yang gak yakin bener dikurangi dulu.
+
 ## Mode Boost (Performa / Seimbang / Hemat Daya)
 Tap game di tab Games sekarang munculin dialog pilih mode dulu:
 - **Performa** -- RAM+cache dibersihkan (selalu jalan di semua mode), overlay auto-nyala KALAU izinnya udah pernah di-approve (gak minta izin baru di tengah alur boost).

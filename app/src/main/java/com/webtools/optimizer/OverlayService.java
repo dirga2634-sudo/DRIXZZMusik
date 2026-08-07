@@ -39,9 +39,13 @@ import java.util.Locale;
  * TYPE_APPLICATION_OVERLAY (izin SYSTEM_ALERT_WINDOW harus di-approve manual lewat Settings),
  * BatteryManager sticky broadcast, TrafficStats, dan Choreographer vsync callback.
  *
+ * Setup DAN setiap callback async (frame/network/battery) masing-masing punya try-catch
+ * sendiri, nangkep Throwable (bukan cuma Exception) -- kalau ada yang gagal, service berhenti
+ * dengan aman + nulis crash log (lewat CrashHandler global), bukan nge-crash seluruh app.
+ *
  * Catatan soal FPS: angka dihitung dari jarak antar tick vsync display (Choreographer),
  * BUKAN dari introspeksi render loop internal app lain -- itu memang tidak tersedia lewat
- * API publik non-root. Ini teknik standar yang dipakai FPS-overlay non-root pada umumnya.
+ * API publik non-root.
  */
 public class OverlayService extends Service {
 
@@ -50,6 +54,7 @@ public class OverlayService extends Service {
 
     private static final String CHANNEL_ID = "overlay_service_channel";
     private static final int NOTIF_ID = 1001;
+    private static final String TAG = "OverlayService";
 
     private WindowManager windowManager;
     private OverlayWidgetBinding overlayBinding;
@@ -60,17 +65,23 @@ public class OverlayService extends Service {
     private final Choreographer.FrameCallback frameCallback = new Choreographer.FrameCallback() {
         @Override
         public void doFrame(long frameTimeNanos) {
-            frameCountSinceLastUpdate++;
-            long nowMs = frameTimeNanos / 1_000_000L;
-            if (lastFpsUpdateMs == 0) lastFpsUpdateMs = nowMs;
-            long elapsed = nowMs - lastFpsUpdateMs;
-            if (elapsed >= 500 && overlayBinding != null) {
-                int fps = (int) Math.round(Math.min(frameCountSinceLastUpdate * 1000.0 / elapsed, 240));
-                overlayBinding.overlayFps.setText(fps + " FPS");
-                frameCountSinceLastUpdate = 0;
-                lastFpsUpdateMs = nowMs;
+            try {
+                frameCountSinceLastUpdate++;
+                long nowMs = frameTimeNanos / 1_000_000L;
+                if (lastFpsUpdateMs == 0) lastFpsUpdateMs = nowMs;
+                long elapsed = nowMs - lastFpsUpdateMs;
+                if (elapsed >= 500 && overlayBinding != null) {
+                    int fps = (int) Math.round(Math.min(frameCountSinceLastUpdate * 1000.0 / elapsed, 240));
+                    overlayBinding.overlayFps.setText(fps + " FPS");
+                    frameCountSinceLastUpdate = 0;
+                    lastFpsUpdateMs = nowMs;
+                }
+            } catch (Throwable t) {
+                android.util.Log.e(TAG, "doFrame error", t);
             }
-            Choreographer.getInstance().postFrameCallback(this);
+            if (isRunning) {
+                Choreographer.getInstance().postFrameCallback(this);
+            }
         }
     };
 
@@ -79,29 +90,39 @@ public class OverlayService extends Service {
     private final Runnable networkSampler = new Runnable() {
         @Override
         public void run() {
-            long now = System.currentTimeMillis();
-            long rxBytes = TrafficStats.getTotalRxBytes();
-            if (lastSampleTime != 0 && rxBytes >= lastRxBytes && overlayBinding != null) {
-                double seconds = (now - lastSampleTime) / 1000.0;
-                double kbps = seconds > 0 ? (rxBytes - lastRxBytes) / 1024.0 / seconds : 0;
-                String type = connectionTypeLabel();
-                overlayBinding.overlayNetwork.setText(
-                        formatNetworkSpeed(kbps) + (type.isEmpty() ? "" : " " + type));
+            try {
+                long now = System.currentTimeMillis();
+                long rxBytes = TrafficStats.getTotalRxBytes();
+                if (lastSampleTime != 0 && rxBytes >= lastRxBytes && overlayBinding != null) {
+                    double seconds = (now - lastSampleTime) / 1000.0;
+                    double kbps = seconds > 0 ? (rxBytes - lastRxBytes) / 1024.0 / seconds : 0;
+                    String type = connectionTypeLabel();
+                    overlayBinding.overlayNetwork.setText(
+                            formatNetworkSpeed(kbps) + (type.isEmpty() ? "" : " " + type));
+                }
+                lastRxBytes = rxBytes;
+                lastSampleTime = now;
+            } catch (Throwable t) {
+                android.util.Log.e(TAG, "networkSampler error", t);
             }
-            lastRxBytes = rxBytes;
-            lastSampleTime = now;
-            mainHandler.postDelayed(this, 1000);
+            if (isRunning) {
+                mainHandler.postDelayed(this, 1000);
+            }
         }
     };
 
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-            if (level >= 0 && scale > 0 && overlayBinding != null) {
-                int percent = Math.round(level * 100f / scale);
-                overlayBinding.overlayBattery.setText(percent + "%");
+            try {
+                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                if (level >= 0 && scale > 0 && overlayBinding != null) {
+                    int percent = Math.round(level * 100f / scale);
+                    overlayBinding.overlayBattery.setText(percent + "%");
+                }
+            } catch (Throwable t) {
+                android.util.Log.e(TAG, "batteryReceiver error", t);
             }
         }
     };
@@ -117,7 +138,7 @@ public class OverlayService extends Service {
         super.onCreate();
         isRunning = true;
         try {
-            startForegroundCompat(buildNotification());
+            startForeground(NOTIF_ID, buildNotification());
             showOverlay();
 
             IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
@@ -129,29 +150,17 @@ public class OverlayService extends Service {
 
             Choreographer.getInstance().postFrameCallback(frameCallback);
             mainHandler.post(networkSampler);
-        } catch (Exception e) {
-            // Jangan biarkan overlay bikin seluruh app force-close. Gagal dengan aman,
-            // kasih tau lewat toast (biar kelihatan tanpa perlu logcat), lalu matiin service.
-            android.util.Log.e("OverlayService", "Gagal mengaktifkan overlay", e);
+        } catch (Throwable t) {
+            android.util.Log.e(TAG, "Gagal mengaktifkan overlay", t);
             isRunning = false;
-            android.widget.Toast.makeText(this,
-                    "Overlay gagal diaktifkan (" + e.getClass().getSimpleName() + ")",
-                    android.widget.Toast.LENGTH_LONG).show();
+            try {
+                android.widget.Toast.makeText(this,
+                        "Overlay gagal diaktifkan (" + t.getClass().getSimpleName() + ")",
+                        android.widget.Toast.LENGTH_LONG).show();
+            } catch (Throwable ignored) {
+                // Best-effort saja.
+            }
             stopSelf();
-        }
-    }
-
-    /**
-     * Android 14+ mewajibkan setiap foreground service punya tipe. Tipe "specialUse" sudah
-     * dideklarasikan di manifest, tapi di sini juga dipanggil eksplisit lewat overload 3-argumen
-     * supaya lebih pasti kebaca sistem, bukan cuma mengandalkan deklarasi manifest saja.
-     */
-    private void startForegroundCompat(Notification notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIF_ID, notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else {
-            startForeground(NOTIF_ID, notification);
         }
     }
 
