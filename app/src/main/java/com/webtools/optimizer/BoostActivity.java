@@ -5,6 +5,8 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
@@ -149,20 +151,39 @@ public class BoostActivity extends AppCompatActivity {
     }
 
     /**
-     * Ini bagian yang beneran ngubah sesuatu antar mode -- bukan kosmetik doang.
-     * Performa: nyalain overlay otomatis KALAU izinnya udah ada (gak minta izin baru di sini,
-     * biar gak ganggu alur boost). Hemat Daya: matiin overlay kalau lagi nyala, biar gak ada
-     * proses Choreographer/network-sampler yang jalan terus pas main. Seimbang: gak diutak-atik.
-     * Semua ini cuma start/stop service milik app sendiri -- nol risiko reboot.
+     * Bagian yang beneran ngubah sesuatu antar mode:
+     * - Performa: overlay auto-nyala (kalau izinnya udah ada) + Do Not Disturb aktif
+     *   (kalau izin notification policy udah di-approve).
+     * - Hemat Daya: overlay dimatikan kalau lagi nyala, DND dimatikan.
+     * - Seimbang: overlay gak diutak-atik, DND dimatikan (biar gak nyangkut nyala).
+     * Semua ini cuma start/stop service milik app sendiri + toggle DND resmi -- nol risiko reboot.
      */
     private void applyModeAction() {
+        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        boolean dndAllowed = nm != null && nm.isNotificationPolicyAccessGranted();
+
         if (mode == MODE_PERFORMANCE) {
             if (Settings.canDrawOverlays(this) && !OverlayService.isRunning) {
-                ContextCompat.startForegroundService(this, new Intent(this, OverlayService.class));
+                Intent overlayIntent = new Intent(this, OverlayService.class);
+                overlayIntent.putExtra(OverlayService.EXTRA_TARGET_PACKAGE, targetPackage);
+                ContextCompat.startForegroundService(this, overlayIntent);
             }
-        } else if (mode == MODE_BATTERY_SAVER) {
-            if (OverlayService.isRunning) {
+            if (dndAllowed) {
+                try {
+                    nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
+                } catch (SecurityException ignored) {
+                    // Izin ke-revoke di tengah jalan, abaikan dengan aman.
+                }
+            }
+        } else {
+            if (mode == MODE_BATTERY_SAVER && OverlayService.isRunning) {
                 stopService(new Intent(this, OverlayService.class));
+            }
+            if (dndAllowed) {
+                try {
+                    nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL);
+                } catch (SecurityException ignored) {
+                }
             }
         }
     }

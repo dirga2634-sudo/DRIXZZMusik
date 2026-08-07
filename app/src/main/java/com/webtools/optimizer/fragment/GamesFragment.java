@@ -13,9 +13,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.webtools.optimizer.BoostActivity;
-import com.webtools.optimizer.R;
+import com.webtools.optimizer.ModeSelectActivity;
 import com.webtools.optimizer.adapter.InstalledAppsAdapter;
 import com.webtools.optimizer.databinding.FragmentGamesBinding;
 import com.webtools.optimizer.model.AppInfo;
@@ -86,23 +85,9 @@ public class GamesFragment extends Fragment {
     }
 
     private void onAppSelected(AppInfo app) {
-        if (getContext() == null) return;
-        String[] modes = {
-                getString(R.string.mode_performance),
-                getString(R.string.mode_balanced),
-                getString(R.string.mode_battery_saver)
-        };
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(getString(R.string.mode_dialog_title, app.label))
-                .setItems(modes, (dialog, which) -> launchBoost(app, which))
-                .show();
-    }
-
-    private void launchBoost(AppInfo app, int modeIndex) {
-        Intent intent = new Intent(requireContext(), BoostActivity.class);
+        Intent intent = new Intent(requireContext(), ModeSelectActivity.class);
         intent.putExtra(BoostActivity.EXTRA_PACKAGE_NAME, app.packageName);
         intent.putExtra(BoostActivity.EXTRA_APP_LABEL, app.label);
-        intent.putExtra(BoostActivity.EXTRA_MODE, modeIndex);
         startActivity(intent);
     }
 

@@ -28,8 +28,13 @@
     <string name="mode_performance">Performa</string>
     <string name="mode_balanced">Seimbang</string>
     <string name="mode_battery_saver">Hemat Daya</string>
-    <string name="mode_dialog_title">Pilih mode untuk %1$s</string>
+    <string name="mode_select_title">Pilih Mode Boost</string>
     <string name="mode_label_performance">Mode: Performa</string>
     <string name="mode_label_balanced">Mode: Seimbang</string>
     <string name="mode_label_battery_saver">Mode: Hemat Daya</string>
+
+    <string name="shizuku_not_installed">Shizuku belum terhubung — CPU% &amp; FPS asli butuh ini</string>
+    <string name="shizuku_not_granted">Shizuku terdeteksi, izin belum diberikan</string>
+    <string name="shizuku_connected">Shizuku terhubung — CPU% &amp; FPS pakai data asli</string>
+    <string name="shizuku_connect_hint">Hubungkan Shizuku</string>
 </resources>

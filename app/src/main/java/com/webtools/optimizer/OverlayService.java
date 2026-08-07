@@ -28,29 +28,37 @@ import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 import com.webtools.optimizer.databinding.OverlayWidgetBinding;
+import com.webtools.optimizer.util.ShellServiceManager;
+import com.webtools.optimizer.util.ShizukuHelper;
+import com.webtools.optimizer.util.ShizukuMetrics;
 
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Foreground service yang nampilin floating widget draggable berisi FPS, baterai, dan
  * kecepatan jaringan real-time di atas app/game lain. 100% API resmi Android:
- * TYPE_APPLICATION_OVERLAY (izin SYSTEM_ALERT_WINDOW harus di-approve manual lewat Settings),
- * BatteryManager sticky broadcast, TrafficStats, dan Choreographer vsync callback.
+ * TYPE_APPLICATION_OVERLAY, BatteryManager sticky broadcast, TrafficStats, Choreographer.
  *
- * Setup DAN setiap callback async (frame/network/battery) masing-masing punya try-catch
- * sendiri, nangkep Throwable (bukan cuma Exception) -- kalau ada yang gagal, service berhenti
- * dengan aman + nulis crash log (lewat CrashHandler global), bukan nge-crash seluruh app.
+ * FPS: default-nya estimasi dari jarak antar tick vsync display (Choreographer) -- selalu
+ * jalan, gak butuh apa-apa. KALAU EXTRA_TARGET_PACKAGE diisi (dari BoostActivity mode
+ * Performa) DAN Shizuku terhubung+diizinkan, angka ini di-OVERRIDE tiap ~2 detik dengan FPS
+ * ASLI dari dumpsys gfxinfo app itu (lewat Shizuku UserService, teks FPS jadi hijau sebagai
+ * penanda "ini data asli"). Kalau Shizuku gak ada, ya tetap estimasi -- gak pernah nge-crash
+ * gara-gara Shizuku gak tersedia.
  *
- * Catatan soal FPS: angka dihitung dari jarak antar tick vsync display (Choreographer),
- * BUKAN dari introspeksi render loop internal app lain -- itu memang tidak tersedia lewat
- * API publik non-root.
+ * Setup DAN setiap callback async masing-masing punya try-catch sendiri, nangkep Throwable --
+ * kalau ada yang gagal, service berhenti dengan aman + nulis crash log (CrashHandler global).
  */
 public class OverlayService extends Service {
 
     public static volatile boolean isRunning = false;
     public static final String ACTION_STOP = "com.webtools.optimizer.ACTION_STOP_OVERLAY";
+    public static final String EXTRA_TARGET_PACKAGE = "extra_target_package";
 
     private static final String CHANNEL_ID = "overlay_service_channel";
     private static final int NOTIF_ID = 1001;
@@ -59,6 +67,8 @@ public class OverlayService extends Service {
     private WindowManager windowManager;
     private OverlayWidgetBinding overlayBinding;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ExecutorService shizukuExecutor;
+    private volatile String targetPackage;
 
     private int frameCountSinceLastUpdate = 0;
     private long lastFpsUpdateMs = 0;
@@ -73,6 +83,8 @@ public class OverlayService extends Service {
                 if (elapsed >= 500 && overlayBinding != null) {
                     int fps = (int) Math.round(Math.min(frameCountSinceLastUpdate * 1000.0 / elapsed, 240));
                     overlayBinding.overlayFps.setText(fps + " FPS");
+                    overlayBinding.overlayFps.setTextColor(
+                            ContextCompat.getColor(OverlayService.this, R.color.text_primary));
                     frameCountSinceLastUpdate = 0;
                     lastFpsUpdateMs = nowMs;
                 }
@@ -148,8 +160,10 @@ public class OverlayService extends Service {
                 registerReceiver(batteryReceiver, batteryFilter);
             }
 
+            shizukuExecutor = Executors.newSingleThreadExecutor();
             Choreographer.getInstance().postFrameCallback(frameCallback);
             mainHandler.post(networkSampler);
+            mainHandler.postDelayed(this::scheduleRealFpsSample, 1500);
         } catch (Throwable t) {
             android.util.Log.e(TAG, "Gagal mengaktifkan overlay", t);
             isRunning = false;
@@ -170,7 +184,38 @@ public class OverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        if (intent != null) {
+            String pkg = intent.getStringExtra(EXTRA_TARGET_PACKAGE);
+            if (pkg != null) targetPackage = pkg;
+        }
         return START_STICKY;
+    }
+
+    /** Coba ambil FPS asli lewat Shizuku tiap 2 detik. Kalau gak tersedia, biarkan estimasi
+     *  vsync (frameCallback) yang jalan terus -- ini cuma "upgrade" kalau ada, bukan syarat. */
+    private void scheduleRealFpsSample() {
+        if (!isRunning) return;
+        String pkg = targetPackage;
+        if (pkg != null && ShizukuHelper.hasPermission() && shizukuExecutor != null) {
+            shizukuExecutor.execute(() -> {
+                try {
+                    ShellServiceManager.ensureBound(OverlayService.this);
+                    int realFps = ShizukuMetrics.readRealFps(pkg);
+                    if (realFps > 0) {
+                        mainHandler.post(() -> {
+                            if (overlayBinding != null) {
+                                overlayBinding.overlayFps.setText(realFps + " FPS");
+                                overlayBinding.overlayFps.setTextColor(
+                                        ContextCompat.getColor(OverlayService.this, R.color.success));
+                            }
+                        });
+                    }
+                } catch (Throwable t) {
+                    android.util.Log.e(TAG, "scheduleRealFpsSample error", t);
+                }
+            });
+        }
+        mainHandler.postDelayed(this::scheduleRealFpsSample, 2000);
     }
 
     private void showOverlay() {
@@ -271,8 +316,9 @@ public class OverlayService extends Service {
     public void onDestroy() {
         super.onDestroy();
         isRunning = false;
-        mainHandler.removeCallbacks(networkSampler);
+        mainHandler.removeCallbacksAndMessages(null);
         Choreographer.getInstance().removeFrameCallback(frameCallback);
+        if (shizukuExecutor != null) shizukuExecutor.shutdown();
         try {
             unregisterReceiver(batteryReceiver);
         } catch (IllegalArgumentException ignored) {
