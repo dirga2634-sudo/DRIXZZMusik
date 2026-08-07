@@ -11,12 +11,14 @@ import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.webtools.optimizer.databinding.ActivityBoostBinding;
 import com.webtools.optimizer.util.CacheManager;
@@ -30,6 +32,11 @@ public class BoostActivity extends AppCompatActivity {
 
     public static final String EXTRA_PACKAGE_NAME = "extra_package_name";
     public static final String EXTRA_APP_LABEL = "extra_app_label";
+    public static final String EXTRA_MODE = "extra_mode";
+
+    public static final int MODE_PERFORMANCE = 0;
+    public static final int MODE_BALANCED = 1;
+    public static final int MODE_BATTERY_SAVER = 2;
 
     private static final int BOOST_DURATION_MS = 2200;
 
@@ -37,6 +44,7 @@ public class BoostActivity extends AppCompatActivity {
     private ExecutorService executor;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String targetPackage;
+    private int mode;
     private AnimatorSet pulseAnimator;
 
     @Override
@@ -47,6 +55,7 @@ public class BoostActivity extends AppCompatActivity {
 
         targetPackage = getIntent().getStringExtra(EXTRA_PACKAGE_NAME);
         String label = getIntent().getStringExtra(EXTRA_APP_LABEL);
+        mode = getIntent().getIntExtra(EXTRA_MODE, MODE_BALANCED);
 
         if (targetPackage == null) {
             finish();
@@ -54,12 +63,24 @@ public class BoostActivity extends AppCompatActivity {
         }
 
         binding.gameLabel.setText(label != null ? label : targetPackage);
+        binding.modeText.setText(modeLabel());
         loadGameIcon();
 
         executor = Executors.newSingleThreadExecutor();
         startPulseAnimation();
         startProgressAnimation();
         runBoostTasks();
+    }
+
+    private String modeLabel() {
+        switch (mode) {
+            case MODE_PERFORMANCE:
+                return getString(R.string.mode_label_performance);
+            case MODE_BATTERY_SAVER:
+                return getString(R.string.mode_label_battery_saver);
+            default:
+                return getString(R.string.mode_label_balanced);
+        }
     }
 
     private void loadGameIcon() {
@@ -124,6 +145,26 @@ public class BoostActivity extends AppCompatActivity {
             CacheManager.clearCache(getApplicationContext());
             RamManager.freeMemory(getApplicationContext());
         });
+        applyModeAction();
+    }
+
+    /**
+     * Ini bagian yang beneran ngubah sesuatu antar mode -- bukan kosmetik doang.
+     * Performa: nyalain overlay otomatis KALAU izinnya udah ada (gak minta izin baru di sini,
+     * biar gak ganggu alur boost). Hemat Daya: matiin overlay kalau lagi nyala, biar gak ada
+     * proses Choreographer/network-sampler yang jalan terus pas main. Seimbang: gak diutak-atik.
+     * Semua ini cuma start/stop service milik app sendiri -- nol risiko reboot.
+     */
+    private void applyModeAction() {
+        if (mode == MODE_PERFORMANCE) {
+            if (Settings.canDrawOverlays(this) && !OverlayService.isRunning) {
+                ContextCompat.startForegroundService(this, new Intent(this, OverlayService.class));
+            }
+        } else if (mode == MODE_BATTERY_SAVER) {
+            if (OverlayService.isRunning) {
+                stopService(new Intent(this, OverlayService.class));
+            }
+        }
     }
 
     private void launchTargetApp() {

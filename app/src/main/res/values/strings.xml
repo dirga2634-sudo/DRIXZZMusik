@@ -24,4 +24,12 @@
     <string name="overlay_notif_title">Overlay performa aktif</string>
     <string name="overlay_notif_text">Menampilkan FPS, baterai, jaringan di atas layar</string>
     <string name="overlay_notif_stop">Matikan</string>
+
+    <string name="mode_performance">Performa</string>
+    <string name="mode_balanced">Seimbang</string>
+    <string name="mode_battery_saver">Hemat Daya</string>
+    <string name="mode_dialog_title">Pilih mode untuk %1$s</string>
+    <string name="mode_label_performance">Mode: Performa</string>
+    <string name="mode_label_balanced">Mode: Seimbang</string>
+    <string name="mode_label_battery_saver">Mode: Hemat Daya</string>
 </resources>

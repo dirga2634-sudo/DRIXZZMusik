@@ -116,18 +116,43 @@ public class OverlayService extends Service {
     public void onCreate() {
         super.onCreate();
         isRunning = true;
-        startForeground(NOTIF_ID, buildNotification());
-        showOverlay();
+        try {
+            startForegroundCompat(buildNotification());
+            showOverlay();
 
-        IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(batteryReceiver, batteryFilter);
+            IntentFilter batteryFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(batteryReceiver, batteryFilter);
+            }
+
+            Choreographer.getInstance().postFrameCallback(frameCallback);
+            mainHandler.post(networkSampler);
+        } catch (Exception e) {
+            // Jangan biarkan overlay bikin seluruh app force-close. Gagal dengan aman,
+            // kasih tau lewat toast (biar kelihatan tanpa perlu logcat), lalu matiin service.
+            android.util.Log.e("OverlayService", "Gagal mengaktifkan overlay", e);
+            isRunning = false;
+            android.widget.Toast.makeText(this,
+                    "Overlay gagal diaktifkan (" + e.getClass().getSimpleName() + ")",
+                    android.widget.Toast.LENGTH_LONG).show();
+            stopSelf();
         }
+    }
 
-        Choreographer.getInstance().postFrameCallback(frameCallback);
-        mainHandler.post(networkSampler);
+    /**
+     * Android 14+ mewajibkan setiap foreground service punya tipe. Tipe "specialUse" sudah
+     * dideklarasikan di manifest, tapi di sini juga dipanggil eksplisit lewat overload 3-argumen
+     * supaya lebih pasti kebaca sistem, bukan cuma mengandalkan deklarasi manifest saja.
+     */
+    private void startForegroundCompat(Notification notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIF_ID, notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIF_ID, notification);
+        }
     }
 
     @Override

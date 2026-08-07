@@ -38,8 +38,8 @@ public class OptimizerFragment extends Fragment {
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (hasOverlayPermission()) {
                     proceedToNotificationCheck();
-                } else if (binding != null) {
-                    binding.overlaySwitch.setChecked(false);
+                } else {
+                    bindOverlaySwitch();
                 }
             });
 
@@ -118,7 +118,14 @@ public class OptimizerFragment extends Fragment {
         if (binding == null || !hasOverlayPermission()) return;
         Intent serviceIntent = new Intent(requireContext(), OverlayService.class);
         ContextCompat.startForegroundService(requireContext(), serviceIntent);
-        bindOverlaySwitch();
+        // Set ON optimis dulu (Service.onCreate() jalan async, isRunning belum tentu ke-update
+        // secepat ini). Kalau ternyata gagal, OverlayService bakal toast + isRunning=false,
+        // dan onResume berikutnya bakal koreksi switch balik ke OFF.
+        binding.overlaySwitch.setOnCheckedChangeListener(null);
+        binding.overlaySwitch.setChecked(true);
+        binding.overlaySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) enableOverlay(); else stopOverlay();
+        });
     }
 
     private void stopOverlay() {

@@ -26,6 +26,17 @@ Aplikasi Android: boost game (bebasin RAM + bersihin cache) dengan loading scree
 
 Widget overlay bisa di-drag ke mana aja di layar, ada tombol X buat matiin langsung, atau dari notifikasi (tombol "Matikan").
 
+## Fix crash overlay
+Overlay sempat force-close pas diaktifkan. Sekarang proses start overlay (`OverlayService.onCreate`) dibungkus try-catch -- kalau ada masalah, overlay gagal aktif dengan aman (toast + log) instead of nge-crash seluruh app. Juga nambahin `startForeground` versi eksplisit dengan tipe `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` khusus buat Android 14+, gak cuma mengandalkan deklarasi manifest doang.
+
+## Mode Boost (Performa / Seimbang / Hemat Daya)
+Tap game di tab Games sekarang munculin dialog pilih mode dulu:
+- **Performa** -- RAM+cache dibersihkan (selalu jalan di semua mode), overlay auto-nyala KALAU izinnya udah pernah di-approve (gak minta izin baru di tengah alur boost).
+- **Seimbang** -- RAM+cache dibersihkan, status overlay gak diutak-atik (ikut yang di-set manual di tab Optimizer).
+- **Hemat Daya** -- RAM+cache dibersihkan, overlay DIMATIKAN kalau lagi nyala (biar gak ada proses Choreographer/network-sampler yang jalan terus-terusan pas main, itu real battery cost-nya).
+
+Semua mode 100% real, gak ada yang kosmetik doang -- dan gak satupun nyentuh CPU governor/kernel/root, jadi nol risiko reboot dari fitur ini.
+
 ## Build via GitHub Actions
 Push ke `main` -> trigger `.github/workflows/android-build.yml` -> APK debug muncul di tab Actions -> Artifacts. Project sengaja tidak menyertakan `gradlew`/wrapper jar (binary) -- workflow provision Gradle 8.10.2 langsung lewat `gradle/actions/setup-gradle`.
 
