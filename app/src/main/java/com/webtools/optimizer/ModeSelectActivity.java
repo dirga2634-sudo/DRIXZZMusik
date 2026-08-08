@@ -20,28 +20,18 @@ import com.webtools.optimizer.util.ShizukuMetrics;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import rikka.shizuku.Shizuku;
-
 /**
- * Layar pilih mode sebelum boost: gauge RAM (selalu real, API resmi) + gauge CPU (real
- * kalau Shizuku terhubung, kalau enggak nampilin "--" dengan jujur) + 3 kartu mode.
+ * Layar pilih mode sebelum boost: gauge RAM (selalu real) + gauge CPU (real kalau Shizuku
+ * terhubung -- koneksi Shizuku sendiri diurus dari tab Settings, di sini cuma baca status)
+ * + 3 kartu mode.
  */
 public class ModeSelectActivity extends AppCompatActivity {
-
-    private static final int SHIZUKU_REQUEST_CODE = 7291;
 
     private ActivityModeSelectBinding binding;
     private ExecutorService executor;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String targetPackage;
     private String targetLabel;
-
-    private final Shizuku.OnRequestPermissionResultListener permissionListener =
-            (requestCode, grantResult) -> {
-                if (requestCode == SHIZUKU_REQUEST_CODE) {
-                    refreshShizukuStatus();
-                }
-            };
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -62,18 +52,17 @@ public class ModeSelectActivity extends AppCompatActivity {
 
         executor = Executors.newSingleThreadExecutor();
 
-        try {
-            Shizuku.addRequestPermissionResultListener(permissionListener);
-        } catch (Throwable ignored) {
-            // Aman diabaikan -- refreshShizukuStatus() tetap fallback dengan benar.
-        }
-
         binding.cardPerformance.setOnClickListener(v -> launchBoost(BoostActivity.MODE_PERFORMANCE));
         binding.cardBalanced.setOnClickListener(v -> launchBoost(BoostActivity.MODE_BALANCED));
         binding.cardBatterySaver.setOnClickListener(v -> launchBoost(BoostActivity.MODE_BATTERY_SAVER));
-        binding.btnConnectShizuku.setOnClickListener(v -> ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE));
 
         refreshRamGauge();
+        refreshShizukuStatus();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
         refreshShizukuStatus();
     }
 
@@ -94,24 +83,12 @@ public class ModeSelectActivity extends AppCompatActivity {
 
     private void refreshShizukuStatus() {
         if (binding == null) return;
-        boolean available = ShizukuHelper.isAvailable();
-        boolean granted = ShizukuHelper.hasPermission();
-
-        if (!available) {
-            binding.shizukuStatusText.setText(R.string.shizuku_not_installed);
-            binding.btnConnectShizuku.setVisibility(View.GONE);
-            binding.cpuGaugeText.setText("--%");
-            return;
-        }
-        if (!granted) {
+        if (!ShizukuHelper.hasPermission()) {
             binding.shizukuStatusText.setText(R.string.shizuku_not_granted);
-            binding.btnConnectShizuku.setVisibility(View.VISIBLE);
             binding.cpuGaugeText.setText("--%");
             return;
         }
-
         binding.shizukuStatusText.setText(R.string.shizuku_connected);
-        binding.btnConnectShizuku.setVisibility(View.GONE);
         ShellServiceManager.ensureBound(this);
         loadCpuUsage();
     }
@@ -143,11 +120,6 @@ public class ModeSelectActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        try {
-            Shizuku.removeRequestPermissionResultListener(permissionListener);
-        } catch (Throwable ignored) {
-            // Aman diabaikan.
-        }
         if (executor != null) executor.shutdown();
     }
 }

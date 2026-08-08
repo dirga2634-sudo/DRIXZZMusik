@@ -1,6 +1,7 @@
 package com.webtools.optimizer.fragment;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -10,16 +11,19 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.webtools.optimizer.BoostActivity;
 import com.webtools.optimizer.ModeSelectActivity;
+import com.webtools.optimizer.R;
 import com.webtools.optimizer.adapter.InstalledAppsAdapter;
 import com.webtools.optimizer.databinding.FragmentGamesBinding;
 import com.webtools.optimizer.model.AppInfo;
 import com.webtools.optimizer.util.AppListLoader;
 import com.webtools.optimizer.util.PrefsManager;
+import com.webtools.optimizer.util.ShizukuHelper;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -50,13 +54,35 @@ public class GamesFragment extends Fragment {
 
         executor = Executors.newSingleThreadExecutor();
         loadApps();
+        refreshShizukuBanner();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        refreshShizukuBanner();
         if (adapter != null && adapter.getItemCount() > 0) {
             loadApps();
+        }
+    }
+
+    /** Status Shizuku ditaruh paling atas menu utama -- biru kalau nyambung, merah kalau belum. */
+    private void refreshShizukuBanner() {
+        if (binding == null) return;
+        boolean available = ShizukuHelper.isAvailable();
+        boolean granted = ShizukuHelper.hasPermission();
+
+        int color = granted
+                ? ContextCompat.getColor(requireContext(), R.color.primary)
+                : ContextCompat.getColor(requireContext(), R.color.danger);
+        binding.shizukuDot.setBackgroundTintList(ColorStateList.valueOf(color));
+
+        if (!available) {
+            binding.shizukuBannerText.setText(R.string.shizuku_not_installed);
+        } else if (!granted) {
+            binding.shizukuBannerText.setText(R.string.shizuku_not_granted);
+        } else {
+            binding.shizukuBannerText.setText(R.string.shizuku_connected);
         }
     }
 

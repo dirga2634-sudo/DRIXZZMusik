@@ -5,7 +5,7 @@
         android:icon="@drawable/ic_game"
         android:title="@string/nav_games" />
     <item
-        android:id="@+id/nav_optimizer"
-        android:icon="@drawable/ic_speed"
-        android:title="@string/nav_optimizer" />
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/nav_settings" />
 </menu>

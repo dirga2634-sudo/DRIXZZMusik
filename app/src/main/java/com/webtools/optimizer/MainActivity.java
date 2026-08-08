@@ -9,13 +9,13 @@ import androidx.fragment.app.Fragment;
 
 import com.webtools.optimizer.databinding.ActivityMainBinding;
 import com.webtools.optimizer.fragment.GamesFragment;
-import com.webtools.optimizer.fragment.OptimizerFragment;
+import com.webtools.optimizer.fragment.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private final GamesFragment gamesFragment = new GamesFragment();
-    private final OptimizerFragment optimizerFragment = new OptimizerFragment();
+    private final SettingsFragment settingsFragment = new SettingsFragment();
     private Fragment activeFragment;
 
     @Override
@@ -26,8 +26,8 @@ public class MainActivity extends AppCompatActivity {
 
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.fragment_container, optimizerFragment, "optimizer")
-                    .hide(optimizerFragment)
+                    .add(R.id.fragment_container, settingsFragment, "settings")
+                    .hide(settingsFragment)
                     .add(R.id.fragment_container, gamesFragment, "games")
                     .commit();
         }
@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean onNavItemSelected(@NonNull MenuItem item) {
-        Fragment target = item.getItemId() == R.id.nav_optimizer ? optimizerFragment : gamesFragment;
+        Fragment target = item.getItemId() == R.id.nav_settings ? settingsFragment : gamesFragment;
         if (target == activeFragment) return true;
 
         getSupportFragmentManager().beginTransaction()

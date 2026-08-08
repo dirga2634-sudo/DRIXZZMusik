@@ -3,6 +3,6 @@
 package com.webtools.optimizer;
 
 interface IShellService {
-    String exec(in String command);
+    String exec(in String command) = 1;
     void destroy() = 16777114;
 }

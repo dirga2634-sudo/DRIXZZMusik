@@ -6,8 +6,6 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,18 +19,27 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.webtools.optimizer.OverlayService;
-import com.webtools.optimizer.databinding.FragmentOptimizerBinding;
-import com.webtools.optimizer.util.CacheManager;
-import com.webtools.optimizer.util.RamManager;
+import com.webtools.optimizer.R;
+import com.webtools.optimizer.databinding.FragmentSettingsBinding;
+import com.webtools.optimizer.util.ShellServiceManager;
+import com.webtools.optimizer.util.ShizukuHelper;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import rikka.shizuku.Shizuku;
 
-public class OptimizerFragment extends Fragment {
+/**
+ * Pusat pengaturan: koneksi Shizuku (dipindah ke sini biar cuma satu tempat, bukan
+ * scattered di ModeSelectActivity) + toggle Overlay Performa manual.
+ */
+public class SettingsFragment extends Fragment {
 
-    private FragmentOptimizerBinding binding;
-    private ExecutorService executor;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private static final int SHIZUKU_REQUEST_CODE = 5182;
+
+    private FragmentSettingsBinding binding;
+
+    private final Shizuku.OnRequestPermissionResultListener permissionListener =
+            (requestCode, grantResult) -> {
+                if (requestCode == SHIZUKU_REQUEST_CODE) refreshShizukuStatus();
+            };
 
     private final ActivityResultLauncher<Intent> overlaySettingsLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -51,27 +58,46 @@ public class OptimizerFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                               @Nullable Bundle savedInstanceState) {
-        binding = FragmentOptimizerBinding.inflate(inflater, container, false);
+        binding = FragmentSettingsBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        executor = Executors.newSingleThreadExecutor();
-        refreshRamInfo();
-        refreshCacheInfo();
+        try {
+            Shizuku.addRequestPermissionResultListener(permissionListener);
+        } catch (Throwable ignored) {
+            // Aman diabaikan -- refreshShizukuStatus() tetap fallback dengan benar.
+        }
+        binding.btnConnectShizuku.setOnClickListener(v -> ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE));
         bindOverlaySwitch();
-        binding.btnBoost.setOnClickListener(v -> onBoostClicked());
-        binding.btnClearCache.setOnClickListener(v -> onClearCacheClicked());
+        refreshShizukuStatus();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        refreshRamInfo();
-        refreshCacheInfo();
         bindOverlaySwitch();
+        refreshShizukuStatus();
+    }
+
+    private void refreshShizukuStatus() {
+        if (binding == null) return;
+        boolean available = ShizukuHelper.isAvailable();
+        boolean granted = ShizukuHelper.hasPermission();
+
+        if (!available) {
+            binding.shizukuStatusText.setText(R.string.shizuku_not_installed);
+            binding.btnConnectShizuku.setVisibility(View.VISIBLE);
+        } else if (!granted) {
+            binding.shizukuStatusText.setText(R.string.shizuku_not_granted);
+            binding.btnConnectShizuku.setVisibility(View.VISIBLE);
+        } else {
+            binding.shizukuStatusText.setText(R.string.shizuku_connected);
+            binding.btnConnectShizuku.setVisibility(View.GONE);
+            ShellServiceManager.ensureBound(requireContext());
+        }
     }
 
     private void bindOverlaySwitch() {
@@ -118,9 +144,6 @@ public class OptimizerFragment extends Fragment {
         if (binding == null || !hasOverlayPermission()) return;
         Intent serviceIntent = new Intent(requireContext(), OverlayService.class);
         ContextCompat.startForegroundService(requireContext(), serviceIntent);
-        // Set ON optimis dulu (Service.onCreate() jalan async, isRunning belum tentu ke-update
-        // secepat ini). Kalau ternyata gagal, OverlayService bakal toast + isRunning=false,
-        // dan onResume berikutnya bakal koreksi switch balik ke OFF.
         binding.overlaySwitch.setOnCheckedChangeListener(null);
         binding.overlaySwitch.setChecked(true);
         binding.overlaySwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -133,69 +156,14 @@ public class OptimizerFragment extends Fragment {
         requireContext().stopService(new Intent(requireContext(), OverlayService.class));
     }
 
-    private void refreshRamInfo() {
-        if (binding == null) return;
-        RamManager.MemInfo info = RamManager.getMemoryInfo(requireContext());
-        binding.ramProgress.setProgress(info.percentUsed);
-        String used = CacheManager.formatSize(info.totalBytes - info.availBytes);
-        String total = CacheManager.formatSize(info.totalBytes);
-        binding.ramText.setText(used + " / " + total + " (" + info.percentUsed + "%)");
-    }
-
-    private void refreshCacheInfo() {
-        if (binding == null || executor == null) return;
-        android.content.Context appContext = requireContext().getApplicationContext();
-        executor.execute(() -> {
-            long size = CacheManager.getCacheSize(appContext);
-            mainHandler.post(() -> {
-                if (binding != null) binding.cacheSizeText.setText(CacheManager.formatSize(size));
-            });
-        });
-    }
-
-    private void onBoostClicked() {
-        if (binding == null || executor == null) return;
-        binding.btnBoost.setEnabled(false);
-        android.content.Context appContext = requireContext().getApplicationContext();
-        executor.execute(() -> {
-            int handled = RamManager.freeMemory(appContext);
-            mainHandler.post(() -> {
-                refreshRamInfo();
-                showStatus("RAM dioptimalkan - " + handled + " proses background diproses");
-                if (binding != null) binding.btnBoost.setEnabled(true);
-            });
-        });
-    }
-
-    private void onClearCacheClicked() {
-        if (binding == null || executor == null) return;
-        binding.btnClearCache.setEnabled(false);
-        android.content.Context appContext = requireContext().getApplicationContext();
-        executor.execute(() -> {
-            long freed = CacheManager.clearCache(appContext);
-            mainHandler.post(() -> {
-                refreshCacheInfo();
-                showStatus("Cache dibersihkan: " + CacheManager.formatSize(freed));
-                if (binding != null) binding.btnClearCache.setEnabled(true);
-            });
-        });
-    }
-
-    private void showStatus(String message) {
-        if (binding == null) return;
-        binding.statusText.setText(message);
-        binding.statusText.setVisibility(View.VISIBLE);
-    }
-
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        try {
+            Shizuku.removeRequestPermissionResultListener(permissionListener);
+        } catch (Throwable ignored) {
+            // Aman diabaikan.
+        }
         binding = null;
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (executor != null) executor.shutdown();
     }
 }
