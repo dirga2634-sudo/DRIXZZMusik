@@ -215,7 +215,7 @@ public class OverlayService extends Service {
                 }
             });
         }
-        mainHandler.postDelayed(this::scheduleRealFpsSample, 2000);
+        mainHandler.postDelayed(this::scheduleRealFpsSample, 1000);
     }
 
     private void showOverlay() {

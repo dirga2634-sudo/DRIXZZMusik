@@ -170,6 +170,7 @@ public class BoostActivity extends AppCompatActivity {
         }
 
         try {
+            binding.lightningView.strike();
             binding.flashOverlay.animate().cancel();
             binding.flashOverlay.setAlpha(0f);
             binding.flashOverlay.animate()

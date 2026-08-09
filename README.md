@@ -27,6 +27,33 @@ tanpa modifikasi kernel/CPU-GPU governor/partisi sistem, nol risiko bootloop.
 - `ShellUserService` + `aidl/IShellService.aidl` -- kode yang jalan di proses shell/ADB lewat
   Shizuku UserService
 
+## Soal "FPS masih 60 padahal lag"
+Ini kemungkinan besar tanda Shizuku belum kesambung -- cek banner di paling atas tab Games:
+**merah = belum, biru = udah**. Kalau merah, FPS di overlay masih pakai estimasi vsync (yang
+memang bakal nongkrong deket refresh rate layar hampir selalu, itu bukan bug, itu dokumentasi
+apa adanya yang udah dijelasin di bagian atas). Kalau bannernya BIRU tapi FPS tetap gak
+berubah/gak match sama lag yang kerasa, itu baru genuinely bug di jalur real-FPS -- kirim
+screenshot kondisi itu spesifik (banner biru + FPS aneh) biar bisa didiagnosis, karena dua
+skenario itu butuh penanganan yang beda banget.
+
+## Animasi Boost -- versi baru (HUD sci-fi)
+Berdasar referensi video yang dikasih, diadaptasi gaya "HUD sci-fi" (cincin ganda + bolt di
+tengah + petir prosedural) -- bukan versi "awan badai" karena lebih nyambung ke tema game dan
+gak butuh asset gambar/video yang bikin APK gede:
+- 2 cincin (progress ring dalam + ring dekoratif luar) + background radial gradient buat depth
+- `LightningView` -- custom View yang gambar petir PROSEDURAL (jalur zigzag acak dari kode,
+  bukan gambar statis/video) yang nyembur dari tengah pas progress 100%, beda dikit tiap kali
+- Suara "geledek" disintesis ulang (lapisan zap + crack + rumble, lebih dramatis dari versi
+  sebelumnya) -- tetap generate langsung di kode, bukan file, jadi gak ada masalah lisensi
+- Flash layar + bolt membesar bareng petir & suara, ada jeda ~450ms sebelum lompat ke game
+
+## Crosshair Overlay (baru)
+Toggle terpisah di tab Settings. Reticle sederhana (lingkaran + 4 garis + titik tengah, vector
+asli bukan emoji) di tengah layar, 100% click-through (`FLAG_NOT_TOUCHABLE`) jadi gak
+menghalangi kontrol game sama sekali. Independen dari Overlay Performa -- bisa nyala salah
+satu atau dua-duanya. Servicenya (`CrosshairService`) sengaja dipisah dari `OverlayService`
+biar dua fitur ini bisa dinyalain/dimatiin independen tanpa saling ganggu.
+
 ## Kenapa CPU/GPU gak "di-boost" beneran
 Nulis ke governor CPU/GPU (buat ubah clock speed) butuh akses setara root. Shizuku (level
 shell/ADB) BIASANYA ditolak sistem buat itu di device retail biasa, dan kalaupun kebetulan

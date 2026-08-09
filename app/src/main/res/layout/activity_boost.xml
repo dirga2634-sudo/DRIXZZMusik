@@ -3,7 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@drawable/bg_boost_radial">
+
+    <View
+        android:id="@+id/hud_ring_outer"
+        android:layout_width="266dp"
+        android:layout_height="266dp"
+        android:background="@drawable/bg_hud_ring"
+        app:layout_constraintBottom_toBottomOf="@id/boost_progress"
+        app:layout_constraintEnd_toEndOf="@id/boost_progress"
+        app:layout_constraintStart_toStartOf="@id/boost_progress"
+        app:layout_constraintTop_toTopOf="@id/boost_progress" />
 
     <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/boost_progress"
@@ -31,6 +41,15 @@
         app:layout_constraintStart_toStartOf="@id/boost_progress"
         app:layout_constraintTop_toTopOf="@id/boost_progress" />
 
+    <com.webtools.optimizer.view.LightningView
+        android:id="@+id/lightning_view"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        app:layout_constraintBottom_toBottomOf="@id/boost_progress"
+        app:layout_constraintEnd_toEndOf="@id/boost_progress"
+        app:layout_constraintStart_toStartOf="@id/boost_progress"
+        app:layout_constraintTop_toTopOf="@id/boost_progress" />
+
     <TextView
         android:id="@+id/percent_text"
         android:layout_width="wrap_content"
@@ -42,7 +61,7 @@
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/boost_progress" />
+        app:layout_constraintTop_toBottomOf="@id/hud_ring_outer" />
 
     <TextView
         android:id="@+id/status_text"

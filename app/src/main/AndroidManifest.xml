@@ -64,6 +64,15 @@
                 android:value="Floating performance overlay while gaming" />
         </service>
 
+        <service
+            android:name=".CrosshairService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Crosshair overlay widget shown while gaming" />
+        </service>
+
     </application>
 
 </manifest>

@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
+import com.webtools.optimizer.CrosshairService;
 import com.webtools.optimizer.OverlayService;
 import com.webtools.optimizer.R;
 import com.webtools.optimizer.databinding.FragmentSettingsBinding;
@@ -27,8 +28,8 @@ import com.webtools.optimizer.util.ShizukuHelper;
 import rikka.shizuku.Shizuku;
 
 /**
- * Pusat pengaturan: koneksi Shizuku (dipindah ke sini biar cuma satu tempat, bukan
- * scattered di ModeSelectActivity) + toggle Overlay Performa manual.
+ * Pusat pengaturan: koneksi Shizuku (satu tempat, bukan scattered) + toggle Overlay
+ * Performa + toggle Crosshair, keduanya manual/independen dari alur boost.
  */
 public class SettingsFragment extends Fragment {
 
@@ -54,6 +55,19 @@ public class SettingsFragment extends Fragment {
             registerForActivityResult(new ActivityResultContracts.RequestPermission(),
                     granted -> startOverlayService());
 
+    private final ActivityResultLauncher<Intent> crosshairSettingsLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (hasOverlayPermission()) {
+                    proceedToCrosshairNotificationCheck();
+                } else {
+                    bindCrosshairSwitch();
+                }
+            });
+
+    private final ActivityResultLauncher<String> crosshairNotificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                    granted -> startCrosshairService());
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -72,6 +86,7 @@ public class SettingsFragment extends Fragment {
         }
         binding.btnConnectShizuku.setOnClickListener(v -> ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE));
         bindOverlaySwitch();
+        bindCrosshairSwitch();
         refreshShizukuStatus();
     }
 
@@ -79,6 +94,7 @@ public class SettingsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         bindOverlaySwitch();
+        bindCrosshairSwitch();
         refreshShizukuStatus();
     }
 
@@ -99,6 +115,8 @@ public class SettingsFragment extends Fragment {
             ShellServiceManager.ensureBound(requireContext());
         }
     }
+
+    // ---------- Overlay Performa ----------
 
     private void bindOverlaySwitch() {
         if (binding == null) return;
@@ -154,6 +172,60 @@ public class SettingsFragment extends Fragment {
     private void stopOverlay() {
         if (getContext() == null) return;
         requireContext().stopService(new Intent(requireContext(), OverlayService.class));
+    }
+
+    // ---------- Crosshair ----------
+
+    private void bindCrosshairSwitch() {
+        if (binding == null) return;
+        binding.crosshairSwitch.setOnCheckedChangeListener(null);
+        binding.crosshairSwitch.setChecked(CrosshairService.isRunning);
+        binding.crosshairSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                enableCrosshair();
+            } else {
+                stopCrosshair();
+            }
+        });
+    }
+
+    private void enableCrosshair() {
+        if (!hasOverlayPermission()) {
+            Intent intent = new Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + requireContext().getPackageName()));
+            crosshairSettingsLauncher.launch(intent);
+            return;
+        }
+        proceedToCrosshairNotificationCheck();
+    }
+
+    private void proceedToCrosshairNotificationCheck() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            boolean granted = ContextCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            if (!granted) {
+                crosshairNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                return;
+            }
+        }
+        startCrosshairService();
+    }
+
+    private void startCrosshairService() {
+        if (binding == null || !hasOverlayPermission()) return;
+        Intent serviceIntent = new Intent(requireContext(), CrosshairService.class);
+        ContextCompat.startForegroundService(requireContext(), serviceIntent);
+        binding.crosshairSwitch.setOnCheckedChangeListener(null);
+        binding.crosshairSwitch.setChecked(true);
+        binding.crosshairSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) enableCrosshair(); else stopCrosshair();
+        });
+    }
+
+    private void stopCrosshair() {
+        if (getContext() == null) return;
+        requireContext().stopService(new Intent(requireContext(), CrosshairService.class));
     }
 
     @Override
