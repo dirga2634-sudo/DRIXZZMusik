@@ -15,6 +15,15 @@
     <string name="crosshair_desc">Reticle statis di tengah layar, gak ganggu kontrol game</string>
     <string name="crosshair_channel_name">Crosshair Aktif</string>
     <string name="crosshair_notif_title">Crosshair aktif</string>
+    <string name="crosshair_customize">Kustomisasi Crosshair</string>
+    <string name="crosshair_color_label">Warna</string>
+    <string name="crosshair_shape_label">Bentuk</string>
+    <string name="crosshair_size_label">Ukuran</string>
+    <string name="crosshair_shape_cross_circle">Silang+Lingkaran</string>
+    <string name="crosshair_shape_cross">Silang</string>
+    <string name="crosshair_shape_dot">Titik</string>
+    <string name="crosshair_shape_circle">Lingkaran</string>
+    <string name="crosshair_done">Selesai</string>
 
     <string name="boost_status_cache">Membersihkan cache...</string>
     <string name="boost_status_ram">Membebaskan RAM...</string>

@@ -27,6 +27,26 @@ tanpa modifikasi kernel/CPU-GPU governor/partisi sistem, nol risiko bootloop.
 - `ShellUserService` + `aidl/IShellService.aidl` -- kode yang jalan di proses shell/ADB lewat
   Shizuku UserService
 
+## Fix: info jaringan gak pernah muncul
+Ketemu -- manifest kelupaan `ACCESS_NETWORK_STATE`. `ConnectivityManager.getActiveNetwork()`
+butuh izin ini; tanpanya dia lempar `SecurityException`, ketangkep diam-diam sama try-catch
+SEBELUM baris `setText()` sempat jalan, jadi teksnya nyangkut di placeholder `"-- KB/s"` di XML
+selamanya. Sekarang izinnya ditambah + `connectionTypeLabel()` juga dipisah jadi versi aman
+sendiri, biar walau itu gagal, angka KB/s-nya tetap kekirim (gak saling blokir lagi).
+
+## Crosshair -- sekarang bisa dikustomisasi
+Tombol "Kustomisasi Crosshair" di tab Settings buka layar baru: preview langsung + pilih
+**warna** (6 pilihan: putih/merah/hijau/cyan/kuning/magenta), **bentuk** (Silang+Lingkaran,
+Silang, Titik, Lingkaran), **ukuran** (slider 24-88dp). Semuanya digambar dinamis lewat
+`CrosshairView` (Canvas, bukan gambar statis) jadi kombinasinya bebas. Tersimpan otomatis
+pas tekan Selesai -- kalau crosshair lagi aktif, dia auto-restart biar style baru langsung
+kepake tanpa perlu matiin-nyalain manual.
+
+## Suara petir v2 -- lebih berat
+Ditambah sub-bass thump 42Hz (yang bikin kerasa "nendang") + crack ganda (crack awal + boom
+susulan ~90ms kemudian, kesan "crack...BOOM") + rumble dengan tremolo halus (kesan gemuruh
+"ngglegar" bergulung, bukan decay lurus). Durasi 1300ms. Tetap disintesis di kode, bukan file.
+
 ## Soal "FPS masih 60 padahal lag"
 Ini kemungkinan besar tanda Shizuku belum kesambung -- cek banner di paling atas tab Games:
 **merah = belum, biru = udah**. Kalau merah, FPS di overlay masih pakai estimasi vsync (yang

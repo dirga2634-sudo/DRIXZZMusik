@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -44,6 +45,11 @@
 
         <activity
             android:name=".ModeSelectActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GameBooster" />
+
+        <activity
+            android:name=".CrosshairCustomizeActivity"
             android:exported="false"
             android:theme="@style/Theme.GameBooster" />
 

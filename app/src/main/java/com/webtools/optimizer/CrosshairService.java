@@ -3,12 +3,11 @@ package com.webtools.optimizer;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
-import android.app.Service;
 import android.os.IBinder;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -16,10 +15,14 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import com.webtools.optimizer.util.PrefsManager;
+import com.webtools.optimizer.view.CrosshairView;
+
 /**
- * Foreground service ringan yang cuma nampilin crosshair statis di tengah layar --
- * FLAG_NOT_TOUCHABLE jadi 100% click-through, gak ganggu kontrol game sama sekali.
- * Independen dari OverlayService (FPS/baterai/jaringan) -- bisa dinyalain terpisah.
+ * Foreground service ringan yang nampilin crosshair (warna/bentuk/ukuran sesuai yang
+ * disimpan lewat CrosshairCustomizeActivity) di tengah layar -- FLAG_NOT_TOUCHABLE jadi
+ * 100% click-through, gak ganggu kontrol game sama sekali. Independen dari OverlayService
+ * (FPS/baterai/jaringan) -- bisa dinyalain terpisah.
  */
 public class CrosshairService extends Service {
 
@@ -65,7 +68,13 @@ public class CrosshairService extends Service {
 
     private void showCrosshair() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        crosshairView = LayoutInflater.from(this).inflate(R.layout.crosshair_widget, null);
+
+        CrosshairView view = new CrosshairView(this, null);
+        view.setStyle(
+                PrefsManager.getCrosshairColor(this),
+                PrefsManager.getCrosshairShape(this),
+                PrefsManager.getCrosshairSize(this));
+        crosshairView = view;
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,

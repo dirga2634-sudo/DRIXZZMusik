@@ -18,6 +18,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
+import com.webtools.optimizer.CrosshairCustomizeActivity;
 import com.webtools.optimizer.CrosshairService;
 import com.webtools.optimizer.OverlayService;
 import com.webtools.optimizer.R;
@@ -85,6 +86,8 @@ public class SettingsFragment extends Fragment {
             // Aman diabaikan -- refreshShizukuStatus() tetap fallback dengan benar.
         }
         binding.btnConnectShizuku.setOnClickListener(v -> ShizukuHelper.requestPermission(SHIZUKU_REQUEST_CODE));
+        binding.btnCustomizeCrosshair.setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), CrosshairCustomizeActivity.class)));
         bindOverlaySwitch();
         bindCrosshairSwitch();
         refreshShizukuStatus();

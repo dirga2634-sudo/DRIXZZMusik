@@ -108,7 +108,7 @@ public class OverlayService extends Service {
                 if (lastSampleTime != 0 && rxBytes >= lastRxBytes && overlayBinding != null) {
                     double seconds = (now - lastSampleTime) / 1000.0;
                     double kbps = seconds > 0 ? (rxBytes - lastRxBytes) / 1024.0 / seconds : 0;
-                    String type = connectionTypeLabel();
+                    String type = safeConnectionTypeLabel();
                     overlayBinding.overlayNetwork.setText(
                             formatNetworkSpeed(kbps) + (type.isEmpty() ? "" : " " + type));
                 }
@@ -269,6 +269,14 @@ public class OverlayService extends Service {
             return String.format(Locale.getDefault(), "%.1f MB/s", kbps / 1024.0);
         }
         return String.format(Locale.getDefault(), "%.0f KB/s", kbps);
+    }
+
+    private String safeConnectionTypeLabel() {
+        try {
+            return connectionTypeLabel();
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
     private String connectionTypeLabel() {
