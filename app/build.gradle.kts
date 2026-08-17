@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -35,12 +37,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
+    }
+}
+
+// Kotlin 2.2+ hard-errors on the old `android.kotlinOptions.jvmTarget = "17"`
+// string setter - it now has to go through the unified compilerOptions DSL,
+// set at the top-level `kotlin {}` extension instead of inside `android {}`.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
