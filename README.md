@@ -50,10 +50,11 @@ Dicek per Agustus 2026 biar gak mismatch di CI:
 |---|---|---|
 | AGP | 8.13.2 | Bukan AGP 9.x - AGP 9 ganti cara handle Kotlin plugin, belum cukup teruji buat dipasangin sekarang |
 | Gradle | 8.14.3 | Diprovision di CI, bukan lewat wrapper |
-| Kotlin | 2.3.20 | |
+| Kotlin | 2.3.20 | jvmTarget di-set lewat `kotlin { compilerOptions {} }`, bukan `kotlinOptions` lama (udah jadi hard error di Kotlin 2.2+) |
 | Compose BOM | 2026.04.01 | BOM setelah ini (1.12+) butuh compileSdk 37 + AGP 9 |
 | CameraX | 1.5.1 | Bukan 1.6.0 - Google eksplisit rekomendasiin 1.5.1 buat bug fixes |
-| compileSdk / targetSdk | 34 | Sama kayak Android di HP Infinix lo |
+| compileSdk | 36 | Compose 1.11 & CameraX 1.5.1 sekarang mensyaratkan minimal compileSdk 35 (ketauan dari error AAR metadata pas build) |
+| targetSdk | 34 | Sengaja tetep di 34, sama kayak Android di HP Infinix lo - compileSdk boleh lebih tinggi dari targetSdk, ini normal |
 | minSdk | 26 | Android 8.0 ke atas |
 
 Package name: `com.drizzx.camera`, app name "Drizzx Cam" - dua-duanya gampang

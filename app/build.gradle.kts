@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.drizzx.camera"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.drizzx.camera"
