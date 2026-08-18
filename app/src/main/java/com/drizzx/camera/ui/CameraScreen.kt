@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +45,7 @@ import com.drizzx.camera.CameraViewModel
 import com.drizzx.camera.CaptureMode
 import com.drizzx.camera.FlashMode
 import com.drizzx.camera.R
+import com.drizzx.camera.config.FilterPreset
 import com.drizzx.camera.ui.theme.DrizzxAccent
 import com.drizzx.camera.ui.theme.RecordingRed
 import kotlinx.coroutines.delay
@@ -49,6 +53,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun CameraScreen(
     hasAudioPermission: Boolean,
+    onOpenConfig: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CameraViewModel = viewModel()
 ) {
@@ -121,7 +126,23 @@ fun CameraScreen(
                 RecordingTimer(seconds = uiState.recordingSeconds)
             }
 
-            Spacer(modifier = Modifier.width(48.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (uiState.supportsManualControls) {
+                    ProToggle(
+                        active = uiState.proModeEnabled,
+                        onToggle = { viewModel.toggleProMode(!uiState.proModeEnabled) }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                IconButton(
+                    onClick = onOpenConfig,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color.Black.copy(alpha = 0.35f), CircleShape)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = "Config & Plugin", tint = Color.White)
+                }
+            }
         }
 
         Column(
@@ -132,6 +153,43 @@ fun CameraScreen(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (uiState.proModeEnabled && uiState.supportsManualControls) {
+                ProControlsPanel(
+                    pro = uiState.proSettings,
+                    isoRange = uiState.isoRange,
+                    exposureTimeRangeNs = uiState.exposureTimeRangeNs,
+                    exposureCompensationRange = uiState.exposureCompensationRange,
+                    minFocusDistanceDiopters = uiState.minFocusDistanceDiopters,
+                    onIsoChange = { auto, value ->
+                        viewModel.updateProLive { it.copy(isoAuto = auto, isoValue = value) }
+                    },
+                    onShutterChange = { auto, ns ->
+                        viewModel.updateProLive { it.copy(shutterAuto = auto, shutterSpeedNs = ns) }
+                    },
+                    onWhiteBalanceChange = { preset ->
+                        viewModel.updateProLive { it.copy(whiteBalancePreset = preset) }
+                    },
+                    onFocusChange = { auto, dist ->
+                        viewModel.updateProLive { it.copy(focusAuto = auto, focusDistanceDiopters = dist) }
+                    },
+                    onExposureCompensationChange = { idx ->
+                        viewModel.updateProLive { it.copy(exposureCompensationIndex = idx) }
+                    },
+                    onCommit = viewModel::commitProSettings,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            if (uiState.captureMode == CaptureMode.PHOTO) {
+                FilterStrip(
+                    filters = uiState.filters,
+                    selected = uiState.selectedFilter,
+                    onSelect = viewModel::selectFilter
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             ModeSwitcher(mode = uiState.captureMode, onModeChange = viewModel::setCaptureMode)
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -319,6 +377,67 @@ private fun ShutterButton(isRecording: Boolean, isVideoMode: Boolean, onClick: (
                 .size(innerSize)
                 .clip(RoundedCornerShape(innerCorner))
                 .background(innerColor)
+        )
+    }
+}
+
+@Composable
+private fun ProToggle(active: Boolean, onToggle: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (active) DrizzxAccent else Color.Black.copy(alpha = 0.35f))
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 10.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = "PRO",
+            color = if (active) Color.Black else Color.White,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+@Composable
+private fun FilterStrip(
+    filters: List<FilterPreset>,
+    selected: FilterPreset,
+    onSelect: (FilterPreset) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        item {
+            FilterChip(
+                name = FilterPreset.ORIGINAL.name,
+                selected = selected.name == FilterPreset.ORIGINAL.name,
+                onClick = { onSelect(FilterPreset.ORIGINAL) }
+            )
+        }
+        items(filters) { filter ->
+            FilterChip(
+                name = filter.name,
+                selected = selected.name == filter.name,
+                onClick = { onSelect(filter) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(name: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) DrizzxAccent else Color.Black.copy(alpha = 0.4f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = name,
+            color = if (selected) Color.Black else Color.White,
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

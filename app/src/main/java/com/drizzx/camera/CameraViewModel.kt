@@ -10,7 +10,12 @@ import androidx.camera.view.PreviewView
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
+import com.drizzx.camera.camera.CameraCapabilities
 import com.drizzx.camera.camera.CameraController
+import com.drizzx.camera.config.CameraConfig
+import com.drizzx.camera.config.ConfigRepository
+import com.drizzx.camera.config.FilterPreset
+import com.drizzx.camera.config.ProDefaults
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,14 +39,33 @@ data class CameraUiState(
     val minZoomRatio: Float = 1f,
     val maxZoomRatio: Float = 1f,
     val lastCaptureUri: Uri? = null,
-    val message: String? = null
+    val message: String? = null,
+    val filters: List<FilterPreset> = FilterPreset.builtIns(),
+    val selectedFilter: FilterPreset = FilterPreset.ORIGINAL,
+    val proModeEnabled: Boolean = false,
+    val proSettings: ProDefaults = ProDefaults(),
+    val supportsManualControls: Boolean = false,
+    val isoRange: IntRange = 100..100,
+    val exposureTimeRangeNs: LongRange = 1_000_000L..1_000_000L,
+    val exposureCompensationRange: IntRange = 0..0,
+    val minFocusDistanceDiopters: Float = 0f,
+    val jpegQuality: Int = 95
 )
 
 class CameraViewModel(application: Application) : AndroidViewModel(application) {
 
     private val controller = CameraController(application.applicationContext)
+    private val configRepository = ConfigRepository(application.applicationContext)
 
-    private val _uiState = MutableStateFlow(CameraUiState())
+    private var activeConfig: CameraConfig = configRepository.load()
+
+    private val _uiState = MutableStateFlow(
+        CameraUiState(
+            filters = activeConfig.filters,
+            proSettings = activeConfig.pro,
+            jpegQuality = activeConfig.imageProcessing.jpegQuality
+        )
+    )
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
     private var recordingTimerJob: Job? = null
@@ -49,14 +73,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     fun bindCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
         viewModelScope.launch {
             val caps = controller.bindToCamera(lifecycleOwner, previewView)
-            _uiState.update {
-                it.copy(
-                    hasFlashUnit = caps.hasFlash,
-                    minZoomRatio = caps.minZoomRatio,
-                    maxZoomRatio = caps.maxZoomRatio,
-                    zoomRatio = 1f
-                )
-            }
+            applyCapabilities(caps)
         }
     }
 
@@ -65,15 +82,38 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             val caps = controller.switchCamera(lifecycleOwner, previewView)
             val nowFront = controller.lensFacing == CameraSelector.LENS_FACING_FRONT
+            applyCapabilities(caps)
             _uiState.update {
                 it.copy(
                     isFrontCamera = nowFront,
-                    hasFlashUnit = caps.hasFlash,
-                    minZoomRatio = caps.minZoomRatio,
-                    maxZoomRatio = caps.maxZoomRatio,
-                    zoomRatio = 1f,
                     flashMode = if (nowFront) FlashMode.OFF else it.flashMode
                 )
+            }
+        }
+    }
+
+    private fun applyCapabilities(caps: CameraCapabilities) {
+        _uiState.update {
+            it.copy(
+                hasFlashUnit = caps.hasFlash,
+                minZoomRatio = caps.minZoomRatio,
+                maxZoomRatio = caps.maxZoomRatio,
+                zoomRatio = 1f,
+                supportsManualControls = caps.supportsManualControls,
+                isoRange = caps.isoRange,
+                exposureTimeRangeNs = caps.exposureTimeRangeNs,
+                exposureCompensationRange = caps.exposureCompensationRange,
+                minFocusDistanceDiopters = caps.minFocusDistanceDiopters
+            )
+        }
+        if (_uiState.value.proModeEnabled) {
+            if (caps.supportsManualControls) {
+                controller.applyManualControls(_uiState.value.proSettings)
+            } else {
+                // This camera doesn't support manual controls (e.g. a LIMITED
+                // front camera) - fall back to auto instead of risking an
+                // unsupported CaptureRequest breaking the session.
+                controller.applyManualControls(ProDefaults())
             }
         }
     }
@@ -106,6 +146,87 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         controller.focusOn(point)
     }
 
+    fun selectFilter(filter: FilterPreset) {
+        _uiState.update { it.copy(selectedFilter = filter) }
+    }
+
+    // --- Pro mode -------------------------------------------------------
+
+    fun toggleProMode(enabled: Boolean) {
+        _uiState.update { it.copy(proModeEnabled = enabled) }
+        val settings = if (enabled) _uiState.value.proSettings else ProDefaults()
+        controller.applyManualControls(settings)
+    }
+
+    /** Live update while dragging a control - pushes to the camera, no disk write. */
+    fun updateProLive(transform: (ProDefaults) -> ProDefaults) {
+        val updated = transform(_uiState.value.proSettings)
+        _uiState.update { it.copy(proSettings = updated) }
+        if (_uiState.value.proModeEnabled) {
+            controller.applyManualControls(updated)
+        }
+    }
+
+    /** Called once a drag/adjustment finishes - persists into the config file. */
+    fun commitProSettings() {
+        activeConfig = activeConfig.copy(pro = _uiState.value.proSettings)
+        configRepository.save(activeConfig)
+    }
+
+    // --- Config import/export -------------------------------------------
+
+    private fun currentConfigSnapshot(): CameraConfig {
+        val state = _uiState.value
+        return activeConfig.copy(
+            pro = state.proSettings,
+            filters = state.filters,
+            imageProcessing = activeConfig.imageProcessing.copy(jpegQuality = state.jpegQuality)
+        )
+    }
+
+    fun writeExportedConfig(uri: Uri): Boolean {
+        activeConfig = currentConfigSnapshot()
+        val xml = configRepository.exportXmlText(activeConfig)
+        return try {
+            val stream = getApplication<Application>().contentResolver.openOutputStream(uri)
+                ?: throw IllegalStateException("Tidak bisa buka file tujuan")
+            stream.use { out -> out.write(xml.toByteArray(Charsets.UTF_8)) }
+            _uiState.update { it.copy(message = "Config berhasil di-export") }
+            true
+        } catch (e: Exception) {
+            _uiState.update { it.copy(message = "Gagal export config") }
+            false
+        }
+    }
+
+    fun importConfigFrom(uri: Uri) {
+        try {
+            val text = getApplication<Application>().contentResolver.openInputStream(uri)
+                ?.bufferedReader()
+                ?.use { reader -> reader.readText() }
+                ?: throw IllegalStateException("File kosong")
+            val imported = configRepository.parseImportedXml(text)
+            activeConfig = imported
+            configRepository.save(imported)
+            _uiState.update {
+                it.copy(
+                    filters = imported.filters,
+                    selectedFilter = FilterPreset.ORIGINAL,
+                    proSettings = imported.pro,
+                    jpegQuality = imported.imageProcessing.jpegQuality,
+                    message = "Config berhasil di-import"
+                )
+            }
+            if (_uiState.value.proModeEnabled) {
+                controller.applyManualControls(imported.pro)
+            }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(message = "Config gak valid, gagal di-import") }
+        }
+    }
+
+    // --- Capture ----------------------------------------------------------
+
     fun onShutterPressed(hasAudioPermission: Boolean) {
         when (_uiState.value.captureMode) {
             CaptureMode.PHOTO -> capturePhoto()
@@ -114,13 +235,16 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun capturePhoto() {
-        val flashMode = when (_uiState.value.flashMode) {
+        val state = _uiState.value
+        val flashMode = when (state.flashMode) {
             FlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
             FlashMode.ON -> ImageCapture.FLASH_MODE_ON
             FlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
         }
         controller.capturePhoto(
             flashMode = flashMode,
+            filter = state.selectedFilter,
+            jpegQuality = state.jpegQuality,
             onSaved = { uri -> _uiState.update { it.copy(lastCaptureUri = uri, message = "Foto tersimpan") } },
             onError = { error -> _uiState.update { it.copy(message = error) } }
         )

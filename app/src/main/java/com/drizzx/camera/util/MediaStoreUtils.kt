@@ -58,4 +58,38 @@ object MediaStoreUtils {
             .setContentValues(values)
             .build()
     }
+
+    /**
+     * Writes already-processed JPEG bytes (e.g. after a filter pass) as a
+     * brand new MediaStore entry. Used instead of [buildPhotoOutputOptions]
+     * whenever the raw camera JPEG isn't going to MediaStore unmodified.
+     */
+    fun writePhotoBytes(context: Context, jpegBytes: ByteArray): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, timestampedName("IMG", "jpg"))
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_PATH_PICTURES)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+
+        val wroteOk = try {
+            resolver.openOutputStream(uri)?.use { it.write(jpegBytes) } != null
+        } catch (e: Exception) {
+            false
+        }
+        if (!wroteOk) {
+            resolver.delete(uri, null, null)
+            return null
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val clearPending = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            resolver.update(uri, clearPending, null, null)
+        }
+        return uri
+    }
 }

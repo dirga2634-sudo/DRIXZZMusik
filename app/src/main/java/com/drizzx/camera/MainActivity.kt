@@ -36,7 +36,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.drizzx.camera.ui.CameraScreen
+import com.drizzx.camera.ui.ConfigScreen
 import com.drizzx.camera.ui.theme.DrizzxCamTheme
 
 class MainActivity : ComponentActivity() {
@@ -87,7 +89,21 @@ private fun PermissionGate() {
     val audioGranted = grantedMap[Manifest.permission.RECORD_AUDIO] == true
 
     if (cameraGranted) {
-        CameraScreen(hasAudioPermission = audioGranted)
+        val cameraViewModel: CameraViewModel = viewModel()
+        var showConfigScreen by remember { mutableStateOf(false) }
+
+        if (showConfigScreen) {
+            ConfigScreen(
+                viewModel = cameraViewModel,
+                onBack = { showConfigScreen = false }
+            )
+        } else {
+            CameraScreen(
+                hasAudioPermission = audioGranted,
+                onOpenConfig = { showConfigScreen = true },
+                viewModel = cameraViewModel
+            )
+        }
     } else {
         PermissionRationale(
             alreadyDenied = requestedOnce,
