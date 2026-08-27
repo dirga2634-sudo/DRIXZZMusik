@@ -1,116 +1,160 @@
-# Drizzx Cam
+# Roum AI
 
-Camera app berbasis CameraX + Jetpack Compose. Night mode multi-frame & HDR
-exposure-bracket belum masuk, nyusul di iterasi berikutnya - itu bagian paling
-kompleks (multi-frame alignment), sengaja dipisah biar digarap dengan hati-hati.
+AI chat web app bertema *dark futuristic* dengan logo "RM", memakai **OpenRouter API** sebagai gateway model AI. Backend Express menjadi proxy sehingga API key tidak pernah menyentuh browser.
 
-## Cara masukin ke workflow lo
+- Frontend: HTML5 + CSS3 + JavaScript vanilla (tanpa build step)
+- Backend: Node.js + Express (proxy `/api/chat`, streaming SSE)
+- Markdown, syntax highlighting & sanitizer dimuat dari CDN: `marked`, `highlight.js`, `DOMPurify`
+- Riwayat chat disimpan di **localStorage** browser (bukan di server)
 
-1. Extract zip ini pake ZArchiver
-2. Copy semua isinya ke folder repo (baru atau existing), commit + push via MGit
-3. GitHub Actions otomatis build APK debug tiap push ke branch `main`, atau
-   trigger manual lewat tab Actions > Build APK > Run workflow
-4. Hasil APK: tab Actions > run terakhir > Artifacts > `DrizzxCam-debug-apk`
+---
 
-## Fitur yang udah jalan (fully functional, no placeholder)
+## 1. Model yang dipakai
 
-**Capture inti**
-- Foto - auto pilih kualitas terbaik yang device support
-- Video - auto quality dengan fallback kalo device gak support kualitas tertinggi
-- Ganti kamera depan/belakang, tap-to-focus, pinch-to-zoom
-- Flash: off / on / auto - tombolnya otomatis hilang kalo device gak punya flash unit
-- Auto-simpen ke galeri sistem (Pictures/DrizzxCam & Movies/DrizzxCam)
-- Jalan dari minSdk 26 (Android 8.0) ke atas; scoped storage otomatis di Android 10+
+Roum AI **tidak dikunci ke satu model** — tersedia 3 pilihan yang bisa diganti kapan saja lewat menu **Settings → Model**:
 
-**Pro mode** (tombol "PRO" di kanan atas, cuma nongol kalo Camera2 hardware
-level device-nya FULL/LEVEL_3 - HP dengan LIMITED/LEGACY tetep dapet auto mode
-yang solid, gak dipaksain)
-- ISO manual, shutter speed (stepped, 1/8000 - 4s), exposure compensation
-- White balance preset (Auto/Siang/Mendung/Lampu Pijar/Neon/Teduh)
-- Fokus manual (diopter, dari infinity ke jarak terdekat device)
-- Semua kontrol lewat `Camera2CameraControl`/`CaptureRequestOptions` (CameraX
-  Camera2 interop) - bukan simulasi, beneran ngirim capture request manual
+| Model | Kelebihan |
+|---|---|
+| **Ox Alpha** (`stealth/ox-alpha`) — default | Gratis, konteks 1M token, mendukung gambar & video, reasoning. Ini model *stealth/preview* dari provider anonim di OpenRouter — **gratis selama masa preview dan bisa berubah atau hilang sewaktu-waktu**, jadi jangan dijadikan andalan jangka panjang. |
+| **Claude Sonnet 5** (`anthropic/claude-sonnet-5`) | Reasoning & analisis file/gambar paling kuat, effort reasoning bisa diatur. Tidak mendukung video. Berbayar sesuai harga OpenRouter. |
+| **Gemini 3 Pro** (`google/gemini-3-pro-preview`) | Paling kuat untuk video, audio, gambar, dan dokumen sekaligus. Berbayar sesuai harga OpenRouter. |
 
-**Filter** (strip di atas mode switcher, cuma di mode Foto)
-- 5 preset bawaan (Vivid/Mono/Cool/Warm/Fade) + Original
-- Diterapkan beneran ke file hasil (bukan cuma preview) lewat ColorMatrix -
-  saturasi, kontras, warmth - lalu di-encode ulang jadi JPEG
-- Mode Original tetep lewat jalur cepat CameraX -> MediaStore langsung (gak ada
-  decode/encode ulang, jadi kualitasnya gak turun kalo emang gak butuh filter)
+Kalau suatu saat `stealth/ox-alpha` sudah tidak tersedia lagi di OpenRouter, tinggal pilih salah satu model lain di Settings, atau ganti `DEFAULT_MODEL` di `.env`. Daftar model ada di `server.js` (objek `MODELS`) — bisa ditambah/diedit bebas, asal pakai slug resmi dari [openrouter.ai/models](https://openrouter.ai/models).
 
-**Config / "plugin" XML** (tombol gear di kanan atas)
-- Semua Pro default + filter preset + kualitas JPEG disimpen di 1 file XML,
-  persis konsep config GCam yang bisa di-share
-- Export lewat system file picker (Storage Access Framework) - gak perlu izin
-  storage tambahan
-- Import: pilih file .xml siapapun (hand-edited atau hasil export lo sendiri),
-  langsung kepake. Nambah filter baru = nambah 1 baris `<Filter>` di XML terus
-  import lagi, gak perlu ubah kode
-- Disimpen otomatis ke penyimpanan internal app juga, jadi tetep kepake
-  walaupun app di-restart tanpa perlu re-import
+---
 
-## Contoh isi config XML
+## 2. Cara install Node.js
 
-Ini yang di-export/di-import - hand-editable, gampang nambah filter baru:
+1. Buka [nodejs.org](https://nodejs.org/), unduh versi **LTS** (minimal Node.js 18, disarankan versi LTS terbaru).
+2. Install seperti aplikasi biasa (Windows/Mac) atau lewat package manager (Linux, mis. `sudo apt install nodejs npm`).
+3. Cek berhasil dengan:
+   ```
+   node -v
+   npm -v
+   ```
 
-```xml
-<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-<DrizzxCamConfig version="1">
-    <Pro>
-        <Iso auto="true" value="100" />
-        <ShutterSpeedNs auto="true" value="16666666" />
-        <WhiteBalance preset="auto" />
-        <FocusDistanceDiopters auto="true" value="0.0" />
-        <ExposureCompensationIndex>0</ExposureCompensationIndex>
-    </Pro>
-    <ImageProcessing jpegQuality="95" />
-    <Filters>
-        <Filter name="Vivid" saturation="1.35" contrast="1.15" warmth="0.05" />
-        <Filter name="Mono" saturation="0.0" contrast="1.1" warmth="0.0" />
-    </Filters>
-</DrizzxCamConfig>
+## 3. Cara install dependency
+
+Buka terminal di folder `roum-ai/`, lalu jalankan:
+
+```
+npm install
 ```
 
-Mau nambah filter "Sunset"? Tinggal tambahin baris `<Filter name="Sunset"
-saturation="1.2" contrast="1.05" warmth="0.3" />` di dalem `<Filters>`, import
-lagi file-nya lewat tombol gear > Import XML.
+Perintah ini akan memasang `express`, `cors`, `dotenv`, dan `express-rate-limit` sesuai `package.json`.
 
-## Yang sengaja belum dimasukin
+## 4. Cara membuat API key OpenRouter
 
-- Night mode multi-frame & HDR exposure-bracket - paling kompleks (perlu
-  capture beberapa frame lalu align + merge), digarap terpisah biar teliti
-- Filter cuma jalan di foto, belum di video (butuh pipeline GL real-time
-  terpisah, jauh lebih berat)
-- Preview filter di viewfinder masih belum live-tinted - milih filter di
-  strip langsung berlaku ke hasil capture, tapi preview kamera tetep
-  nampilin gambar asli sampe di-capture
-- Minifikasi/R8 di release build - sengaja dimatiin dulu (`isMinifyEnabled = false`)
-  biar kalo ada crash gampang dilacak, tinggal dinyalain lagi kalo udah stabil
-- Deteksi "permission ditolak permanen" masih manual (tombol "Buka Pengaturan"
-  selalu muncul setelah penolakan pertama, bukan deteksi otomatis)
+1. Buka [openrouter.ai](https://openrouter.ai/) dan buat akun (bisa login dengan Google/GitHub).
+2. Masuk ke halaman **[openrouter.ai/keys](https://openrouter.ai/keys)**.
+3. Klik **Create Key**, beri nama bebas (misalnya "Roum AI"), lalu salin key yang muncul (formatnya `sk-or-v1-...`).
+   > Key hanya ditampilkan sekali — simpan baik-baik.
+4. Untuk model berbayar (Claude Sonnet 5 / Gemini 3 Pro), isi saldo/credit di halaman **Credits**. Model `stealth/ox-alpha` gratis selama masa preview jadi tidak perlu saldo untuk mencobanya.
 
-## Kenapa gak ada gradlew
+## 5. Cara memasukkan API key ke .env
 
-Gradle wrapper butuh `gradle-wrapper.jar` (file binary) yang gak bisa dibikin dari
-tool text-only. Solusinya: workflow CI provision Gradle 8.14.3 langsung lewat
-`gradle/actions/setup-gradle`, jadi gak butuh wrapper sama sekali. Kalo nanti lo
-pegang Android Studio, tinggal jalanin `gradle wrapper` sekali buat generate
-gradlew seperti biasa.
+1. Di folder `roum-ai/`, salin `.env.example` menjadi `.env`:
+   ```
+   cp .env.example .env
+   ```
+   (Windows CMD: `copy .env.example .env`)
+2. Buka `.env`, isi baris berikut dengan key asli kamu:
+   ```
+   OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+3. Simpan file. **Jangan pernah** commit atau membagikan file `.env` ini — sudah otomatis diabaikan oleh `.gitignore`.
 
-## Versi yang dipakai
+> ⚠️ **Catatan keamanan:** kamu sempat menempelkan sebuah API key OpenRouter langsung di chat ini. Karena sudah tercatat di riwayat percakapan, sebaiknya anggap key itu terekspos — buka [openrouter.ai/keys](https://openrouter.ai/keys), hapus/regenerate key lama, lalu pakai key **baru** di `.env`. Ke depannya, key cukup ditaruh langsung di file `.env`, tidak perlu dikirim lewat chat manapun.
 
-Dicek per Agustus 2026 biar gak mismatch di CI:
+## 6. Cara menjalankan Roum AI
 
-| Komponen | Versi | Catatan |
-|---|---|---|
-| AGP | 8.13.2 | Bukan AGP 9.x - AGP 9 ganti cara handle Kotlin plugin, belum cukup teruji buat dipasangin sekarang |
-| Gradle | 8.14.3 | Diprovision di CI, bukan lewat wrapper |
-| Kotlin | 2.3.20 | jvmTarget di-set lewat `kotlin { compilerOptions {} }`, bukan `kotlinOptions` lama (udah jadi hard error di Kotlin 2.2+) |
-| Compose BOM | 2026.04.01 | BOM setelah ini (1.12+) butuh compileSdk 37 + AGP 9 |
-| CameraX | 1.5.1 | Bukan 1.6.0 - Google eksplisit rekomendasiin 1.5.1 buat bug fixes |
-| compileSdk | 36 | Compose 1.11 & CameraX 1.5.1 sekarang mensyaratkan minimal compileSdk 35 (ketauan dari error AAR metadata pas build) |
-| targetSdk | 34 | Sengaja tetep di 34, sama kayak Android di HP Infinix lo - compileSdk boleh lebih tinggi dari targetSdk, ini normal |
-| minSdk | 26 | Android 8.0 ke atas |
+```
+npm start
+```
 
-Package name: `com.drizzx.camera`, app name "Drizzx Cam" - dua-duanya gampang
-diganti kalo mau rename/rebrand.
+Lalu buka **http://localhost:3000** di browser. Untuk mode development dengan auto-restart saat file berubah, dan kalau `nodemon` sudah ter-install lewat `npm install`:
+
+```
+npm run dev
+```
+
+Titik hijau di sebelah nama model (pojok kiri atas area chat) menandakan server sudah terhubung dengan API key yang valid. Titik merah = `OPENROUTER_API_KEY` belum/tidak terbaca.
+
+## 7. Cara membuka website dari HP
+
+**Opsi A — satu jaringan WiFi (untuk uji coba lokal):**
+1. Pastikan laptop/PC dan HP terhubung ke WiFi yang sama.
+2. Cari alamat IP lokal laptop:
+   - Windows: `ipconfig` → lihat "IPv4 Address" (contoh `192.168.1.5`)
+   - Mac/Linux: `ifconfig` atau `ip addr` → cari alamat `192.168.x.x`
+3. Jalankan server (`npm start`), lalu di HP buka browser ke `http://192.168.1.5:3000` (ganti dengan IP laptop kamu).
+
+**Opsi B — bisa diakses dari mana saja:** deploy ke hosting (lihat bagian 8), lalu buka URL publiknya dari HP.
+
+## 8. Cara deploy ke hosting
+
+Roum AI punya **dua backend siap pakai** tergantung platform tujuan — keduanya memakai frontend yang sama persis di `public/`:
+
+- `server.js` → untuk hosting yang menjalankan Node.js sungguhan (proses hidup terus): **Render, Railway, Fly.io, VPS, atau lokal/Termux**.
+- folder `api/` → untuk **Vercel** (serverless functions, bukan proses yang hidup terus).
+
+**Netlify sengaja tidak didukung** untuk versi ini: Netlify hanya cocok untuk file statis, dan format serverless function-nya tidak mendukung *streaming* respons AI dengan baik (jawaban akan muncul sekaligus di akhir, bukan mengetik langsung) — jadi pengalaman chat-nya jelek. Kalau targetnya "gratis + gampang + full-Node", **Render** lebih pas dari Netlify.
+
+### Opsi A — Render / Railway / Fly.io / VPS (pakai `server.js`)
+
+1. Push folder project ini ke repository GitHub (pastikan `.env` **tidak** ikut ter-commit — cek `.gitignore`).
+2. Di dashboard platform pilihan, buat *Web Service* baru dan hubungkan ke repo tersebut.
+3. Atur:
+   - **Build command:** `npm install`
+   - **Start command:** `npm start`
+4. Di bagian **Environment Variables** platform tersebut, tambahkan `OPENROUTER_API_KEY` (dan opsional `SITE_URL`, `DEFAULT_MODEL`, dll — lihat `.env.example`) — isi lewat dashboard, bukan lewat file `.env`.
+5. Deploy. Platform akan memberi URL publik (misalnya `https://roum-ai.onrender.com`).
+
+Render punya tier gratis asli untuk Node.js (tanpa kartu kredit) — instance-nya "tidur" kalau 15 menit tidak dipakai lalu bangun lagi ~30–60 detik pas diakses lagi. Cukup untuk pemakaian pribadi.
+
+### Opsi B — Vercel (pakai folder `api/`)
+
+1. Push project ini ke GitHub.
+2. Di [vercel.com](https://vercel.com), **Add New → Project**, import repo tersebut. Framework Preset pilih **Other** (biar folder `public/` otomatis jadi root situs statis, dan folder `api/` otomatis jadi serverless functions — tidak perlu konfigurasi build apa pun).
+3. Di **Environment Variables**, tambahkan `OPENROUTER_API_KEY` (isi dengan key OpenRouter kamu).
+4. Deploy. Vercel kasih URL publik (`https://nama-project.vercel.app`).
+
+**Batasan khusus versi Vercel** (tidak berlaku di Opsi A):
+- **Video dimatikan total.** Vercel Functions punya batas keras request 4.5MB — tidak cukup untuk file video sama sekali, jadi tombol upload video otomatis dinonaktifkan di deployment ini.
+- **Gambar dibatasi 2MB** (lebih kecil dari 10MB di Opsi A), supaya sisa ruang di bawah batas 4.5MB itu cukup untuk teks percakapan.
+- Function dibatasi durasi 60 detik (`vercel.json`) — jawaban dengan reasoning "High" yang sangat panjang berisiko terpotong di paket gratis Vercel.
+- Tidak ada rate limiting bawaan (beda dari Opsi A yang pakai `express-rate-limit`) — Vercel Functions tidak punya proses yang hidup terus untuk menyimpan hitungannya.
+
+Kalau butuh upload video, pakai Opsi A (Render dkk), bukan Vercel.
+
+---
+
+## Batasan yang perlu diketahui
+
+- **Riwayat chat** tersimpan di `localStorage` browser masing-masing perangkat — tidak sinkron antar perangkat/browser, dan bisa hilang jika cache browser dibersihkan.
+- Lampiran gambar/video ikut tersimpan di localStorage sebagai base64. Browser membatasi localStorage (biasanya beberapa MB), jadi di percakapan yang sangat panjang dengan banyak lampiran besar, lampiran lama bisa otomatis "dilepas" dari riwayat tersimpan (teks tetap aman) — akan muncul notifikasi kalau ini terjadi.
+- Video hanya bisa dianalisis oleh model yang mendukungnya (Ox Alpha, Gemini 3 Pro) — dukungan video di OpenRouter memang bergantung pada model/provider, bukan fitur universal.
+- Batas ukuran file default: gambar 10MB, video 30MB (bisa diubah di `server.js` & `public/app.js`, cari `MAX_IMAGE_BYTES`/`MAX_VIDEO_BYTES`).
+
+## Struktur project
+
+```
+roum-ai/
+├── public/
+│   ├── index.html      # struktur halaman
+│   ├── style.css        # desain dark/glassmorphism, mobile-first
+│   ├── app.js            # semua logic frontend (chat, streaming, settings, dll)
+│   └── assets/
+│       └── favicon.svg   # logo RM
+├── server.js             # backend Express untuk Render/Railway/VPS/lokal (Opsi A)
+├── api/                  # backend serverless untuk Vercel (Opsi B)
+│   ├── chat.js
+│   ├── models.js
+│   └── health.js
+├── lib/
+│   └── vercel-shared.js  # katalog model & validasi khusus untuk folder api/
+├── vercel.json           # durasi maksimum function chat di Vercel
+├── package.json
+├── .env.example
+└── .gitignore
+```
