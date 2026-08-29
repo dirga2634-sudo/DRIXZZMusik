@@ -488,6 +488,12 @@ async function streamAssistantReply(conv) {
     }
     if (!res.body) throw new Error('Streaming is not supported in this browser.');
 
+    const usedModelId = res.headers.get('X-Roum-Model-Used');
+    if (usedModelId && usedModelId !== model.id) {
+      const usedModelInfo = state.models.find((m) => m.id === usedModelId);
+      showToast(`${model.label} sedang penuh — otomatis dialihkan ke ${usedModelInfo ? usedModelInfo.label : usedModelId}.`, 'success');
+    }
+
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';

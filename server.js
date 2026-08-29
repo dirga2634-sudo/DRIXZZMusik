@@ -92,6 +92,31 @@ const DEFAULT_MODEL_ID =
     ? process.env.DEFAULT_MODEL
     : 'z-ai/glm-5.2:free';
 
+/**
+ * Model gratis di OpenRouter dipakai BANYAK orang sekaligus (karena $0), jadi
+ * lebih sering kena rate limit/penuh dibanding model berbayar. Kalau model
+ * yang dipilih ada di daftar ini dan kena 429/404, server otomatis coba model
+ * gratis lain di daftar ini sebelum menyerah — user tidak perlu gonta-ganti
+ * model manual. Model berbayar TIDAK pernah di-fallback (supaya tidak diam-diam
+ * mengganti pilihan user ke model lain yang bisa kena biaya berbeda).
+ */
+const FREE_FALLBACK_CHAIN = [
+  'z-ai/glm-5.2:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+];
+
+function buildFallbackCandidates(modelConfig, messages) {
+  if (!FREE_FALLBACK_CHAIN.includes(modelConfig.id)) return [modelConfig];
+  const hasImage = messages.some((m) => (m.attachments || []).some((a) => a.type === 'image'));
+  const hasVideo = messages.some((m) => (m.attachments || []).some((a) => a.type === 'video'));
+  const ordered = [modelConfig.id, ...FREE_FALLBACK_CHAIN.filter((id) => id !== modelConfig.id)];
+  const candidates = ordered
+    .map((id) => MODELS[id])
+    .filter((m) => m && (!hasImage || m.supportsImage) && (!hasVideo || m.supportsVideo));
+  return candidates.length ? candidates : [modelConfig];
+}
+
 const MAX_MESSAGES_PER_REQUEST = 60;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024; // 30MB
@@ -223,63 +248,92 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     return res.status(400).json({ error: attachmentError });
   }
 
-  const payload = {
-    model: modelConfig.id,
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are Roum AI, a sharp and friendly assistant. Format answers with Markdown, always use fenced code blocks with a language tag for code, and be concise but thorough.',
-      },
-      ...buildOpenRouterMessages(messages),
-    ],
-    stream: true,
-    max_tokens: modelConfig.maxOutputTokens,
-  };
-
-  if (reasoningEffort && reasoningEffort !== 'none') {
-    payload.reasoning = { effort: reasoningEffort };
-  }
+  const candidates = buildFallbackCandidates(modelConfig, messages);
+  const orMessages = [
+    {
+      role: 'system',
+      content:
+        'You are Roum AI, a sharp and friendly assistant. Format answers with Markdown, always use fenced code blocks with a language tag for code, and be concise but thorough.',
+    },
+    ...buildOpenRouterMessages(messages),
+  ];
 
   const controller = new AbortController();
   req.on('close', () => controller.abort());
 
-  let upstream;
-  try {
-    upstream = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': SITE_URL,
-        'X-Title': 'Roum AI',
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err.name === 'AbortError') return res.end();
-    return res.status(502).json({ error: 'Tidak bisa menghubungi OpenRouter. Periksa koneksi internet server.' });
-  }
+  let upstream = null;
+  let usedModel = candidates[0];
+  let lastStatus = 502;
+  let lastDetail = '';
 
-  if (!upstream.ok) {
-    let detail = '';
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const payload = {
+      model: candidate.id,
+      messages: orMessages,
+      stream: true,
+      max_tokens: candidate.maxOutputTokens,
+    };
+    if (reasoningEffort && reasoningEffort !== 'none') {
+      payload.reasoning = { effort: reasoningEffort };
+    }
+
+    let attempt;
     try {
-      const errJson = await upstream.json();
-      detail = (errJson && errJson.error && errJson.error.message) || '';
+      attempt = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': SITE_URL,
+          'X-Title': 'Roum AI',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return res.end();
+      lastStatus = 502;
+      lastDetail = 'Tidak bisa menghubungi OpenRouter. Periksa koneksi internet server.';
+      continue;
+    }
+
+    if (attempt.ok) {
+      upstream = attempt;
+      usedModel = candidate;
+      break;
+    }
+
+    lastStatus = attempt.status;
+    try {
+      const errJson = await attempt.json();
+      lastDetail = (errJson && errJson.error && errJson.error.message) || '';
     } catch (_) {
       /* respons error bukan JSON, abaikan */
     }
+    // 429 (rate limit) / 404 (model lagi tidak tersedia) → layak dicoba model gratis berikutnya.
+    const isRetryable = attempt.status === 429 || attempt.status === 404;
+    if (!isRetryable) break; // error lain (401/402/dst) tidak akan hilang dengan ganti model, langsung berhenti
+  }
+
+  if (!upstream) {
     const friendly = {
       401: 'API key OpenRouter tidak valid atau ditolak.',
       402: 'Kredit OpenRouter tidak cukup untuk model ini.',
       404: 'Model tidak ditemukan atau sedang tidak tersedia.',
-      429: 'Rate limit OpenRouter tercapai, coba lagi sebentar lagi.',
+      429:
+        candidates.length > 1
+          ? 'Semua model gratis sedang penuh, coba lagi sebentar lagi.'
+          : 'Rate limit OpenRouter tercapai, coba lagi sebentar lagi.',
     };
-    const msg = friendly[upstream.status] || `OpenRouter mengembalikan error (status ${upstream.status}).`;
-    const status = upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502;
-    return res.status(status).json({ error: detail ? `${msg} ${detail}` : msg });
+    const msg = friendly[lastStatus] || (lastDetail || `OpenRouter mengembalikan error (status ${lastStatus}).`);
+    const status = lastStatus >= 400 && lastStatus < 600 ? lastStatus : 502;
+    return res.status(status).json({ error: lastDetail && friendly[lastStatus] ? `${msg} ${lastDetail}` : msg });
   }
+
+  // Beri tahu frontend model mana yang benar-benar merespons (bisa beda dari yang
+  // diminta kalau terjadi fallback), supaya bisa ditampilkan sebagai notifikasi kecil.
+  res.setHeader('X-Roum-Model-Used', usedModel.id);
 
   // Mulai stream Server-Sent Events ke frontend, teruskan chunk apa adanya.
   res.setHeader('Content-Type', 'text/event-stream');

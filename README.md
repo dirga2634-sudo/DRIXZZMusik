@@ -24,6 +24,8 @@ Roum AI **tidak dikunci ke satu model** — tersedia beberapa pilihan yang bisa 
 
 Defaultnya sengaja diset ke model **gratis** supaya Roum AI langsung bisa dipakai walau saldo OpenRouter $0. Begitu ada saldo, ganti ke GLM-5.3 Flash/Claude/Gemini di Settings buat kualitas yang lebih baik.
 
+**Fallback otomatis antar-model gratis:** karena model gratis dipakai banyak orang sekaligus dan sering penuh, kalau model gratis yang lagi kamu pilih kena rate limit/tidak tersedia, server otomatis coba model gratis lain (urutan: GLM 5.2 → Nemotron 3 Super → Nemotron Nano Omni) sebelum menampilkan error — akan muncul notifikasi kecil kalau ini terjadi. Model berbayar tidak pernah di-fallback (supaya tidak diam-diam mengganti pilihanmu ke model lain yang biayanya beda).
+
 ⚠️ **Model gratis di OpenRouter itu daftarnya berubah-ubah** (bisa ditarik atau diganti provider tanpa pemberitahuan — persis seperti yang terjadi pada Ox Alpha). Kalau `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` suatu saat error "model tidak ditemukan", cek daftar model gratis terbaru di [openrouter.ai/models](https://openrouter.ai/models) (filter "Free"), lalu ganti `DEFAULT_MODEL` di `.env` atau edit objek `MODELS` di `server.js`.
 
 ---

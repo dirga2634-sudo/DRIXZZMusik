@@ -4,6 +4,7 @@ const {
   buildOpenRouterMessages,
   validateAttachments,
   systemPrompt,
+  buildFallbackCandidates,
 } = require('../lib/vercel-shared');
 
 const MAX_MESSAGES_PER_REQUEST = 60;
@@ -35,56 +36,82 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: attachmentError });
   }
 
-  const payload = {
-    model: modelConfig.id,
-    messages: [{ role: 'system', content: systemPrompt() }, ...buildOpenRouterMessages(messages)],
-    stream: true,
-    max_tokens: modelConfig.maxOutputTokens,
-  };
-  if (reasoningEffort && reasoningEffort !== 'none') {
-    payload.reasoning = { effort: reasoningEffort };
-  }
+  const candidates = buildFallbackCandidates(modelConfig, messages);
+  const orMessages = [{ role: 'system', content: systemPrompt() }, ...buildOpenRouterMessages(messages)];
 
   const controller = new AbortController();
   req.on('close', () => controller.abort());
 
-  let upstream;
-  try {
-    upstream = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.SITE_URL || 'https://vercel.com',
-        'X-Title': 'Roum AI',
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err.name === 'AbortError') return res.end();
-    return res.status(502).json({ error: 'Tidak bisa menghubungi OpenRouter.' });
-  }
+  let upstream = null;
+  let usedModel = candidates[0];
+  let lastStatus = 502;
+  let lastDetail = '';
 
-  if (!upstream.ok) {
-    let detail = '';
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const payload = {
+      model: candidate.id,
+      messages: orMessages,
+      stream: true,
+      max_tokens: candidate.maxOutputTokens,
+    };
+    if (reasoningEffort && reasoningEffort !== 'none') {
+      payload.reasoning = { effort: reasoningEffort };
+    }
+
+    let attempt;
     try {
-      const errJson = await upstream.json();
-      detail = (errJson && errJson.error && errJson.error.message) || '';
+      attempt = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.SITE_URL || 'https://vercel.com',
+          'X-Title': 'Roum AI',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return res.end();
+      lastStatus = 502;
+      lastDetail = 'Tidak bisa menghubungi OpenRouter.';
+      continue;
+    }
+
+    if (attempt.ok) {
+      upstream = attempt;
+      usedModel = candidate;
+      break;
+    }
+
+    lastStatus = attempt.status;
+    try {
+      const errJson = await attempt.json();
+      lastDetail = (errJson && errJson.error && errJson.error.message) || '';
     } catch (_) {
       /* respons error bukan JSON */
     }
+    const isRetryable = attempt.status === 429 || attempt.status === 404;
+    if (!isRetryable) break;
+  }
+
+  if (!upstream) {
     const friendly = {
       401: 'API key OpenRouter tidak valid atau ditolak.',
       402: 'Kredit OpenRouter tidak cukup untuk model ini.',
       404: 'Model tidak ditemukan atau sedang tidak tersedia.',
-      429: 'Rate limit OpenRouter tercapai, coba lagi sebentar lagi.',
+      429:
+        candidates.length > 1
+          ? 'Semua model gratis sedang penuh, coba lagi sebentar lagi.'
+          : 'Rate limit OpenRouter tercapai, coba lagi sebentar lagi.',
     };
-    const msg = friendly[upstream.status] || `OpenRouter mengembalikan error (status ${upstream.status}).`;
-    const status = upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502;
-    return res.status(status).json({ error: detail ? `${msg} ${detail}` : msg });
+    const msg = friendly[lastStatus] || (lastDetail || `OpenRouter mengembalikan error (status ${lastStatus}).`);
+    const status = lastStatus >= 400 && lastStatus < 600 ? lastStatus : 502;
+    return res.status(status).json({ error: lastDetail && friendly[lastStatus] ? `${msg} ${lastDetail}` : msg });
   }
 
+  res.setHeader('X-Roum-Model-Used', usedModel.id);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
