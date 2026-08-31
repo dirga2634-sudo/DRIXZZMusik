@@ -15,12 +15,19 @@ Roum AI **tidak dikunci ke satu model** — tersedia beberapa pilihan yang bisa 
 
 | Model | Kelebihan |
 |---|---|
-| **GLM 5.2 (Free)** (`z-ai/glm-5.2:free`) — default | **Gratis**, kualitas terbaik untuk coding + obrolan biasa di antara model gratis OpenRouter. Teks saja, tidak bisa gambar/video. |
-| **Nemotron 3 Super (Free)** (`nvidia/nemotron-3-super-120b-a12b:free`) | **Gratis**, model NVIDIA lebih besar, konteks 1M token, kuat di reasoning/coding/agentic. Teks saja. |
-| **Nemotron Nano Omni** (`nvidia/...:free`) | **Gratis**, satu-satunya pilihan gratis yang bisa menganalisis gambar (dan video di luar Vercel). Kualitas coding/obrolan di bawah dua di atas. |
+| **Auto (Gratis)** — default | Bukan model sungguhan — ini "meta-pilihan" yang otomatis mencoba GLM 5.2 → Nemotron 3 Ultra → MiniMax M3 → Nemotron 3 Super → Inkling → Nemotron Nano Omni → (Gemini Flash langsung, kalau `GEMINI_API_KEY` diisi) secara berurutan, pakai yang pertama berhasil. Nggak perlu mikirin pilih model gratis yang mana. |
+| **GLM 5.2 (Free)** (`z-ai/glm-5.2:free`) | **Gratis**, kualitas terbaik untuk coding + obrolan biasa di antara model gratis OpenRouter. Teks saja. |
+| **Nemotron 3 Ultra (Free)** (`nvidia/nemotron-3-ultra-550b-a55b:free`) | **Gratis**, model gratis paling banyak dipakai di OpenRouter — frontier reasoning NVIDIA. Teks saja. |
+| **MiniMax M3 (Free)** (`minimax/minimax-m3:free`) | **Gratis**, multimodal (gambar & video), konteks ~1M token, salah satu model gratis terpopuler. |
+| **Inkling (Free)** (`thinkingmachines/inkling:free`) | **Gratis**, multimodal (gambar & audio) dari Thinking Machines Lab, konteks ~1M token. |
+| **Nemotron 3 Super (Free)** (`nvidia/nemotron-3-super-120b-a12b:free`) | **Gratis**, model NVIDIA besar, kuat di reasoning/coding/agentic. Teks saja. |
+| **Nemotron Nano Omni** (`nvidia/...:free`) | **Gratis**, multimodal (gambar & video). Kualitas coding/obrolan di bawah yang lain. |
+| **Gemini Flash (Free · langsung Google)** (`google-direct/gemini-flash-latest`) | **Gratis**, tapi lewat kuota API Google AI Studio-mu sendiri, BUKAN lewat OpenRouter — jadi tetap jalan walau semua model gratis OpenRouter penuh. Butuh `GEMINI_API_KEY` sendiri (lihat bagian 4b). |
 | **GLM-5.3 Flash** (`z-ai/glm-5.3-flash`) | Sebelumnya sempat tampil sebagai preview gratis "Ox Alpha". Konteks 1M token, gambar & video, reasoning. Berbayar tapi sangat murah per token. |
 | **Claude Sonnet 5** (`anthropic/claude-sonnet-5`) | Reasoning & analisis file/gambar paling kuat, effort reasoning bisa diatur. Tidak mendukung video. Harga menengah. |
-| **Gemini 3 Pro** (`google/gemini-3-pro-preview`) | Paling kuat untuk video, audio, gambar, dan dokumen sekaligus. Harga menengah. |
+| **Gemini 3 Pro** (`google/gemini-3-pro-preview`) | Paling kuat untuk video, audio, gambar, dan dokumen sekaligus (lewat OpenRouter, berbayar). Harga menengah. |
+
+**"Auto (Gratis)" itu apa persisnya?** Ini bukan model API sungguhan — cuma penanda internal. Saat dipilih, server langsung mencoba seluruh rantai model gratis di atas satu-satu (skip yang tidak cocok kalau ada lampiran gambar/video), pakai yang pertama merespons sukses. Kalau mau PAKSA satu model gratis tertentu (bukan auto), pilih model itu langsung di daftar — perilakunya sama saja karena tetap ada fallback ke yang lain kalau dia penuh, cuma urutan prioritasnya beda.
 
 Defaultnya sengaja diset ke model **gratis** supaya Roum AI langsung bisa dipakai walau saldo OpenRouter $0. Begitu ada saldo, ganti ke GLM-5.3 Flash/Claude/Gemini di Settings buat kualitas yang lebih baik.
 
@@ -56,7 +63,17 @@ Perintah ini akan memasang `express`, `cors`, `dotenv`, dan `express-rate-limit`
 2. Masuk ke halaman **[openrouter.ai/keys](https://openrouter.ai/keys)**.
 3. Klik **Create Key**, beri nama bebas (misalnya "Roum AI"), lalu salin key yang muncul (formatnya `sk-or-v1-...`).
    > Key hanya ditampilkan sekali — simpan baik-baik.
-4. Model default Roum AI (Nemotron Nano Omni) **gratis** dan tidak butuh saldo sama sekali. Model lain (GLM-5.3 Flash, Claude Sonnet 5, Gemini 3 Pro) berbayar per-token — kalau nanti mau coba, isi saldo/credit dulu di halaman **Credits** (harga bervariasi, cek [openrouter.ai/models](https://openrouter.ai/models)).
+4. Model default Roum AI (Auto/GLM 5.2/dkk) **gratis** dan tidak butuh saldo sama sekali. Model lain (GLM-5.3 Flash, Claude Sonnet 5, Gemini 3 Pro) berbayar per-token — kalau nanti mau coba, isi saldo/credit dulu di halaman **Credits** (harga bervariasi, cek [openrouter.ai/models](https://openrouter.ai/models)).
+
+## 4b. (Opsional) Cara membuat API key Gemini langsung dari Google
+
+Ini terpisah dari OpenRouter — kalau diisi, Roum AI dapat SATU lagi jalur gratis yang independen (model "Gemini Flash (Free · langsung Google)"), pakai kuota gratis akun Google-mu sendiri.
+
+1. Buka **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**, login dengan akun Google.
+2. Klik **Create API key**, salin key yang muncul.
+3. Tempel ke `.env` sebagai `GEMINI_API_KEY=...`.
+
+> Catatan: key Gemini yang baru dibuat sekarang bisa berformat `AQ....` (bukan `AIzaSy...` seperti dulu) — itu normal, Google sedang migrasi format. Roum AI sudah menangani kedua format ini karena manggil API Google langsung, bukan lewat wrapper OpenAI-compatible yang biasanya menolak format baru ini.
 
 ## 5. Cara memasukkan API key ke .env
 
@@ -123,7 +140,7 @@ Render punya tier gratis asli untuk Node.js (tanpa kartu kredit) — instance-ny
 
 1. Push project ini ke GitHub.
 2. Di [vercel.com](https://vercel.com), **Add New → Project**, import repo tersebut. Framework Preset pilih **Other** (biar folder `public/` otomatis jadi root situs statis, dan folder `api/` otomatis jadi serverless functions — tidak perlu konfigurasi build apa pun).
-3. Di **Environment Variables**, tambahkan `OPENROUTER_API_KEY` (isi dengan key OpenRouter kamu).
+3. Di **Environment Variables**, tambahkan `OPENROUTER_API_KEY` (isi dengan key OpenRouter kamu) dan, kalau mau pakai jalur Gemini gratis independen, `GEMINI_API_KEY` juga — **ini wajib diisi lewat dashboard Vercel**, karena Vercel tidak pernah membaca file `.env` di production sama sekali.
 4. Deploy. Vercel kasih URL publik (`https://nama-project.vercel.app`).
 
 **Batasan khusus versi Vercel** (tidak berlaku di Opsi A):

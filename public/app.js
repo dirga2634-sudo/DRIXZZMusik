@@ -20,7 +20,11 @@ const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'
 const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 const FALLBACK_MODELS = [
+  { id: 'auto:free', label: 'Auto (Gratis)', tag: 'Gratis · Otomatis', description: 'Automatically uses whichever free model is available.', supportsImage: true, supportsVideo: true },
   { id: 'z-ai/glm-5.2:free', label: 'GLM 5.2 (Free)', tag: 'Gratis · Coding & chat', description: 'Best free model for coding + natural chat. Text only.', supportsImage: false, supportsVideo: false },
+  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron 3 Ultra (Free)', tag: 'Gratis · Paling populer', description: 'Most-used free model on OpenRouter. Text only.', supportsImage: false, supportsVideo: false },
+  { id: 'minimax/minimax-m3:free', label: 'MiniMax M3 (Free)', tag: 'Gratis · Gambar & video', description: 'Free multimodal model, text/image/video, huge context.', supportsImage: true, supportsVideo: true },
+  { id: 'thinkingmachines/inkling:free', label: 'Inkling (Free)', tag: 'Gratis · Gambar & audio', description: 'Free multimodal model, image & audio understanding.', supportsImage: true, supportsVideo: false },
   { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super (Free)', tag: 'Gratis · Reasoning besar', description: 'Bigger free NVIDIA model, strong reasoning/coding. Text only.', supportsImage: false, supportsVideo: false },
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', label: 'Nemotron Nano Omni', tag: 'Gratis · Gambar & video', description: 'Truly free open-source model. Text, image, video.', supportsImage: true, supportsVideo: true },
   { id: 'z-ai/glm-5.3-flash', label: 'GLM-5.3 Flash', tag: 'Murah & cepat', description: 'Formerly "Ox Alpha". 1M context, image & video support.', supportsImage: true, supportsVideo: true },
@@ -30,6 +34,7 @@ const FALLBACK_MODELS = [
 
 const ICONS = {
   copy: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   edit: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   refresh: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7" stroke-linecap="round"/><path d="M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   trash: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -51,7 +56,7 @@ const state = {
   activeConversationId: null,
   settings: null,
   models: [],
-  defaultModel: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  defaultModel: 'auto:free',
   maxImageBytes: DEFAULT_MAX_IMAGE_BYTES,
   maxVideoBytes: DEFAULT_MAX_VIDEO_BYTES,
   videoDisabledReason: '',
@@ -113,10 +118,41 @@ function renderMarkdownSafe(text) {
   }
 }
 
-function enhanceMessageContent(bubbleEl) {
+// Bahasa (dari class "language-xxx" yang dihasilkan marked/hljs) → ekstensi file,
+// dipakai tombol Download di setiap blok kode supaya bisa disimpan sebagai file
+// asli — bukan cuma disalin sebagai teks.
+const LANG_TO_EXT = {
+  javascript: 'js', js: 'js', jsx: 'jsx', typescript: 'ts', ts: 'ts', tsx: 'tsx',
+  python: 'py', py: 'py', html: 'html', xml: 'xml', svg: 'svg',
+  css: 'css', scss: 'scss', sass: 'sass', less: 'less',
+  json: 'json', jsonc: 'json', yaml: 'yml', yml: 'yml',
+  bash: 'sh', shell: 'sh', sh: 'sh', zsh: 'sh', powershell: 'ps1',
+  markdown: 'md', md: 'md', sql: 'sql',
+  java: 'java', kotlin: 'kt', c: 'c', cpp: 'cpp', 'c++': 'cpp',
+  csharp: 'cs', 'c#': 'cs', php: 'php', go: 'go', rust: 'rs', rs: 'rs',
+  ruby: 'rb', rb: 'rb', swift: 'swift', dart: 'dart', r: 'r',
+  dockerfile: 'Dockerfile', diff: 'diff', ini: 'ini', toml: 'toml',
+  plaintext: 'txt', text: 'txt', txt: 'txt',
+};
+function extForLang(lang) {
+  return LANG_TO_EXT[(lang || '').toLowerCase()] || 'txt';
+}
+function downloadTextAsFile(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function enhanceMessageContent(bubbleEl, { highlight = true } = {}) {
   if (!bubbleEl) return;
   bubbleEl.querySelectorAll('pre code').forEach((block) => {
-    if (window.hljs) {
+    if (highlight && window.hljs) {
       try { hljs.highlightElement(block); } catch (e) { /* ignore */ }
     }
     const pre = block.parentElement;
@@ -127,7 +163,7 @@ function enhanceMessageContent(bubbleEl) {
     wrapper.className = 'code-block';
     const header = document.createElement('div');
     header.className = 'code-block__header';
-    header.innerHTML = `<span>${escapeHtml(lang)}</span><button type="button" class="code-block__copy">${ICONS.copy}<span>Copy</span></button>`;
+    header.innerHTML = `<span>${escapeHtml(lang)}</span><div class="code-block__btns"><button type="button" class="code-block__download" title="Download as file">${ICONS.download}</button><button type="button" class="code-block__copy">${ICONS.copy}<span>Copy</span></button></div>`;
     pre.replaceWith(wrapper);
     wrapper.appendChild(header);
     wrapper.appendChild(pre);
@@ -359,6 +395,14 @@ function handleMessagesClick(e) {
     navigator.clipboard.writeText(codeEl.textContent).then(() => flashLabel(copyCodeBtn.querySelector('span'), 'Copied'));
     return;
   }
+  const downloadCodeBtn = e.target.closest('.code-block__download');
+  if (downloadCodeBtn) {
+    const codeBlockEl = downloadCodeBtn.closest('.code-block');
+    const codeEl = codeBlockEl.querySelector('code');
+    const lang = codeBlockEl.querySelector('.code-block__header span').textContent;
+    downloadTextAsFile(codeEl.textContent, `roum-ai.${extForLang(lang)}`);
+    return;
+  }
   const actionBtn = e.target.closest('[data-action]');
   if (!actionBtn) return;
   const messageEl = actionBtn.closest('.message');
@@ -466,6 +510,38 @@ async function streamAssistantReply(conv) {
   let thinkingEl = null;
   let firstContentChunk = true;
 
+  // Selama streaming, render di-throttle ke ~1x per frame (requestAnimationFrame)
+  // dan syntax highlighting DIMATIKAN sementara — itu bagian paling berat, apalagi
+  // untuk blok kode panjang yang di-parse ulang di setiap potongan teks yang masuk.
+  // Setelah stream selesai, render final penuh (dengan highlight) dijalankan sekali.
+  let renderScheduled = false;
+  function paint() {
+    renderScheduled = false;
+    if (thinkingEl) thinkingEl.querySelector('.thinking-body').textContent = assistantMsg.reasoning;
+    if (assistantMsg.content) {
+      bubbleEl.innerHTML = renderMarkdownSafe(assistantMsg.content);
+      enhanceMessageContent(bubbleEl, { highlight: false });
+    }
+    scrollToBottom();
+  }
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(paint);
+  }
+  function finalizeThinking() {
+    if (!thinkingEl) return;
+    thinkingEl.querySelector('.thinking-body').textContent = assistantMsg.reasoning;
+    thinkingEl.classList.remove('is-open');
+    thinkingEl.querySelector('.thinking-toggle span').textContent = 'Show thinking';
+  }
+  function appendActions() {
+    const actions = document.createElement('div');
+    actions.className = 'message__actions';
+    actions.innerHTML = `<button type="button" data-action="copy">${ICONS.copy}<span>Copy</span></button><button type="button" data-action="regenerate">${ICONS.refresh}<span>Regenerate</span></button>`;
+    colEl.appendChild(actions);
+  }
+
   setGenerating(true);
   const controller = new AbortController();
   state.abortController = controller;
@@ -489,9 +565,9 @@ async function streamAssistantReply(conv) {
     if (!res.body) throw new Error('Streaming is not supported in this browser.');
 
     const usedModelId = res.headers.get('X-Roum-Model-Used');
-    if (usedModelId && usedModelId !== model.id) {
+    if (usedModelId) {
       const usedModelInfo = state.models.find((m) => m.id === usedModelId);
-      showToast(`${model.label} sedang penuh — otomatis dialihkan ke ${usedModelInfo ? usedModelInfo.label : usedModelId}.`, 'success');
+      showToast(`Model pertama sedang penuh — otomatis dialihkan ke ${usedModelInfo ? usedModelInfo.label : usedModelId}.`, 'success');
     }
 
     const reader = res.body.getReader();
@@ -522,15 +598,12 @@ async function streamAssistantReply(conv) {
             thinkingEl.innerHTML = `<button type="button" class="thinking-toggle">${ICONS.chevronRight}<span>Hide thinking</span></button><div class="thinking-body"></div>`;
             colEl.insertBefore(thinkingEl, bubbleEl);
           }
-          thinkingEl.querySelector('.thinking-body').textContent = assistantMsg.reasoning;
-          scrollToBottom();
+          scheduleRender();
         }
         if (delta.content) {
           if (firstContentChunk) { bubbleEl.innerHTML = ''; firstContentChunk = false; }
           assistantMsg.content += delta.content;
-          bubbleEl.innerHTML = renderMarkdownSafe(assistantMsg.content);
-          enhanceMessageContent(bubbleEl);
-          scrollToBottom();
+          scheduleRender();
         }
       }
     }
@@ -539,19 +612,23 @@ async function streamAssistantReply(conv) {
       throw new Error('The model returned an empty response. Please try again.');
     }
     if (!assistantMsg.content) {
-      bubbleEl.innerHTML = renderMarkdownSafe('*(Only a reasoning trace was returned — no final answer text.)*');
+      assistantMsg.content = '*(Only a reasoning trace was returned — no final answer text.)*';
     }
-    if (thinkingEl) {
-      thinkingEl.classList.remove('is-open');
-      thinkingEl.querySelector('.thinking-toggle span').textContent = 'Show thinking';
-    }
-    const actions = document.createElement('div');
-    actions.className = 'message__actions';
-    actions.innerHTML = `<button type="button" data-action="copy">${ICONS.copy}<span>Copy</span></button><button type="button" data-action="regenerate">${ICONS.refresh}<span>Regenerate</span></button>`;
-    colEl.appendChild(actions);
+    // Render final — full quality, dengan syntax highlighting, tidak di-throttle.
+    bubbleEl.innerHTML = renderMarkdownSafe(assistantMsg.content);
+    enhanceMessageContent(bubbleEl);
+    finalizeThinking();
+    appendActions();
   } catch (err) {
     if (err.name === 'AbortError') {
-      if (!assistantMsg.content) { bubbleEl.innerHTML = '<em>Stopped.</em>'; }
+      if (!assistantMsg.content) {
+        bubbleEl.innerHTML = '<em>Stopped.</em>';
+      } else {
+        bubbleEl.innerHTML = renderMarkdownSafe(assistantMsg.content);
+        enhanceMessageContent(bubbleEl);
+        appendActions();
+      }
+      finalizeThinking();
     } else {
       assistantMsg.error = err.message || 'Something went wrong.';
       wrap.classList.add('message--error');
@@ -757,7 +834,7 @@ async function checkHealth() {
     const data = await res.json();
     els.modelStatusDot.classList.toggle('is-off', !data.configured);
     if (!data.configured) {
-      showToast('The server has no OPENROUTER_API_KEY configured — add it to .env and restart the server.', 'error');
+      showToast('The server has no API key configured (OPENROUTER_API_KEY / GEMINI_API_KEY) — add one to .env and restart the server.', 'error');
     }
   } catch (e) {
     els.modelStatusDot.classList.add('is-off');
@@ -883,7 +960,7 @@ async function init() {
     const res = await fetch('/api/models');
     const data = await res.json();
     state.models = (data.models && data.models.length) ? data.models : FALLBACK_MODELS;
-    state.defaultModel = data.default || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+    state.defaultModel = data.default || 'auto:free';
     if (typeof data.maxImageBytes === 'number') state.maxImageBytes = data.maxImageBytes;
     if (typeof data.maxVideoBytes === 'number') state.maxVideoBytes = data.maxVideoBytes;
     state.videoDisabledReason = data.videoDisabledReason || '';
