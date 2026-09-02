@@ -507,7 +507,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     });
   }
 
-  const RACE_GROUP_SIZE = 3; // tembak 3 kandidat teratas sekaligus — dijaga tidak SEMUA, biar jatah harian model gratis tidak habis 6-7x lebih cepat
+  const RACE_GROUP_SIZE = candidates.length; // tembak SEMUA kandidat yang cocok sekaligus (termasuk yang bisa gambar/video), bukan cuma sebagian
   let upstream = null;
   let usedModel = candidates[0];
   let lastStatus = 502;

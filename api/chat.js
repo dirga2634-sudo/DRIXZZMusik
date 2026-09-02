@@ -118,7 +118,7 @@ module.exports = async (req, res) => {
     });
   }
 
-  const RACE_GROUP_SIZE = 3;
+  const RACE_GROUP_SIZE = candidates.length; // tembak SEMUA kandidat yang cocok sekaligus
   let upstream = null;
   let usedModel = candidates[0];
   let lastStatus = 502;
