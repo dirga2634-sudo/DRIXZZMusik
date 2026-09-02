@@ -20,21 +20,13 @@ const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'
 const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 const FALLBACK_MODELS = [
-  { id: 'auto:free', label: 'Auto (Gratis)', tag: 'Gratis · Otomatis', description: 'Automatically uses whichever free model is available.', supportsImage: true, supportsVideo: true },
-  { id: 'z-ai/glm-5.2:free', label: 'GLM 5.2 (Free)', tag: 'Gratis · Coding & chat', description: 'Best free model for coding + natural chat. Text only.', supportsImage: false, supportsVideo: false },
-  { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron 3 Ultra (Free)', tag: 'Gratis · Paling populer', description: 'Most-used free model on OpenRouter. Text only.', supportsImage: false, supportsVideo: false },
-  { id: 'minimax/minimax-m3:free', label: 'MiniMax M3 (Free)', tag: 'Gratis · Gambar & video', description: 'Free multimodal model, text/image/video, huge context.', supportsImage: true, supportsVideo: true },
-  { id: 'thinkingmachines/inkling:free', label: 'Inkling (Free)', tag: 'Gratis · Gambar & audio', description: 'Free multimodal model, image & audio understanding.', supportsImage: true, supportsVideo: false },
-  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super (Free)', tag: 'Gratis · Reasoning besar', description: 'Bigger free NVIDIA model, strong reasoning/coding. Text only.', supportsImage: false, supportsVideo: false },
-  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', label: 'Nemotron Nano Omni', tag: 'Gratis · Gambar & video', description: 'Truly free open-source model. Text, image, video.', supportsImage: true, supportsVideo: true },
-  { id: 'z-ai/glm-5.3-flash', label: 'GLM-5.3 Flash', tag: 'Murah & cepat', description: 'Formerly "Ox Alpha". 1M context, image & video support.', supportsImage: true, supportsVideo: true },
-  { id: 'anthropic/claude-sonnet-5', label: 'Claude Sonnet 5', tag: 'Strong reasoning', description: 'Strong reasoning and file/image analysis.', supportsImage: true, supportsVideo: false },
-  { id: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro', tag: 'Best multimodal', description: 'Best for video, audio, image and document understanding.', supportsImage: true, supportsVideo: true },
+  { id: 'auto:free', label: 'Roum AI Pro', tag: 'Model utama', description: 'Model utama Roum AI.', supportsImage: true, supportsVideo: true },
 ];
 
 const ICONS = {
   copy: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10l5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  play: '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
   edit: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   refresh: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7" stroke-linecap="round"/><path d="M21 3v6h-6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   trash: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -149,6 +141,11 @@ function downloadTextAsFile(text, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function isPreviewableHtml(lang, code) {
+  if (lang === 'html' || lang === 'xml' || lang === 'svg') return true;
+  return /^\s*<!DOCTYPE html|^\s*<html[\s>]/i.test(code || '');
+}
+
 function enhanceMessageContent(bubbleEl, { highlight = true } = {}) {
   if (!bubbleEl) return;
   bubbleEl.querySelectorAll('pre code').forEach((block) => {
@@ -163,7 +160,10 @@ function enhanceMessageContent(bubbleEl, { highlight = true } = {}) {
     wrapper.className = 'code-block';
     const header = document.createElement('div');
     header.className = 'code-block__header';
-    header.innerHTML = `<span>${escapeHtml(lang)}</span><div class="code-block__btns"><button type="button" class="code-block__download" title="Download as file">${ICONS.download}</button><button type="button" class="code-block__copy">${ICONS.copy}<span>Copy</span></button></div>`;
+    const previewBtn = isPreviewableHtml(lang, block.textContent)
+      ? `<button type="button" class="code-block__preview">${ICONS.play}<span>Preview</span></button>`
+      : '';
+    header.innerHTML = `<span>${escapeHtml(lang)}</span><div class="code-block__btns">${previewBtn}<button type="button" class="code-block__download" title="Download as file">${ICONS.download}</button><button type="button" class="code-block__copy">${ICONS.copy}<span>Copy</span></button></div>`;
     pre.replaceWith(wrapper);
     wrapper.appendChild(header);
     wrapper.appendChild(pre);
@@ -403,6 +403,12 @@ function handleMessagesClick(e) {
     downloadTextAsFile(codeEl.textContent, `roum-ai.${extForLang(lang)}`);
     return;
   }
+  const previewCodeBtn = e.target.closest('.code-block__preview');
+  if (previewCodeBtn) {
+    const codeEl = previewCodeBtn.closest('.code-block').querySelector('code');
+    openPreviewModal(codeEl.textContent);
+    return;
+  }
   const actionBtn = e.target.closest('[data-action]');
   if (!actionBtn) return;
   const messageEl = actionBtn.closest('.message');
@@ -564,11 +570,9 @@ async function streamAssistantReply(conv) {
     }
     if (!res.body) throw new Error('Streaming is not supported in this browser.');
 
-    const usedModelId = res.headers.get('X-Roum-Model-Used');
-    if (usedModelId) {
-      const usedModelInfo = state.models.find((m) => m.id === usedModelId);
-      showToast(`Model pertama sedang penuh — otomatis dialihkan ke ${usedModelInfo ? usedModelInfo.label : usedModelId}.`, 'success');
-    }
+    // Catatan: server kadang otomatis pindah ke provider lain di balik layar kalau
+    // yang pertama penuh (header X-Roum-Model-Used) — sengaja TIDAK diberi tahu ke
+    // user, biar pengalamannya tetap terasa satu "Roum AI Pro" yang solid.
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -734,6 +738,17 @@ function scrollToBottom(force) {
 function showModal(modalEl) { modalEl.hidden = false; }
 function hideModal(modalEl) { modalEl.hidden = true; }
 
+function openPreviewModal(code) {
+  els.previewFrame.srcdoc = code;
+  showModal(els.previewModal);
+  els.btnPreviewNewTab.onclick = () => {
+    const blob = new Blob([code], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+}
+
 function openRenameModal(conv) {
   els.renameInput.value = conv.title || '';
   showModal(els.renameModal);
@@ -873,6 +888,7 @@ function grabDomRefs() {
     btnConfirmCancel: $('btn-confirm-cancel'), btnConfirmOk: $('btn-confirm-ok'),
     renameModal: $('rename-modal'), renameInput: $('rename-input'),
     btnRenameCancel: $('btn-rename-cancel'), btnRenameSave: $('btn-rename-save'),
+    previewModal: $('preview-modal'), previewFrame: $('preview-frame'), btnPreviewNewTab: $('btn-preview-newtab'),
     toastContainer: $('toast-container'),
   };
 }
@@ -934,7 +950,12 @@ function wireEventListeners() {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handleFilesSelected(e.dataTransfer.files);
   });
 
-  document.querySelectorAll('[data-close-modal]').forEach((el) => el.addEventListener('click', (e) => hideModal(e.target.closest('.modal'))));
+  document.querySelectorAll('[data-close-modal]').forEach((el) => el.addEventListener('click', (e) => {
+    const modalEl = e.target.closest('.modal');
+    hideModal(modalEl);
+    // Kosongkan iframe saat preview ditutup, biar script/audio di dalamnya berhenti (bukan cuma disembunyikan).
+    if (modalEl === els.previewModal) els.previewFrame.srcdoc = '';
+  }));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.modal:not([hidden])').forEach(hideModal); });
 
   els.btnClearHistory.addEventListener('click', openClearHistoryConfirm);

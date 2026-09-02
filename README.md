@@ -31,7 +31,7 @@ Roum AI **tidak dikunci ke satu model** — tersedia beberapa pilihan yang bisa 
 
 Defaultnya sengaja diset ke model **gratis** supaya Roum AI langsung bisa dipakai walau saldo OpenRouter $0. Begitu ada saldo, ganti ke GLM-5.3 Flash/Claude/Gemini di Settings buat kualitas yang lebih baik.
 
-**Fallback otomatis antar-model gratis:** karena model gratis dipakai banyak orang sekaligus dan sering penuh, kalau model gratis yang lagi kamu pilih kena rate limit/tidak tersedia, server otomatis coba model gratis lain (urutan: GLM 5.2 → Nemotron 3 Super → Nemotron Nano Omni) sebelum menampilkan error — akan muncul notifikasi kecil kalau ini terjadi. Model berbayar tidak pernah di-fallback (supaya tidak diam-diam mengganti pilihanmu ke model lain yang biayanya beda).
+**Roum AI Pro" itu banyak provider di balik satu nama:** karena model gratis dipakai banyak orang sekaligus dan sering penuh, request tidak dikirim ke satu provider lalu nunggu gagal baru pindah — 3 provider teratas ditembak **sekaligus secara paralel**, dan yang pertama merespons sukses langsung dipakai (yang lain otomatis dibatalkan). Kalau ketiganya gagal bareng (jarang terjadi), baru sisanya dicoba satu per satu sebagai cadangan terakhir. Semua ini terjadi diam-diam di belakang layar — tidak ada notifikasi provider mana yang dipakai, supaya pengalamannya tetap terasa satu AI yang solid. Model berbayar (kalau dipilih manual, bukan lewat "Roum AI Pro") tidak ikut sistem ini.
 
 ⚠️ **Model gratis di OpenRouter itu daftarnya berubah-ubah** (bisa ditarik atau diganti provider tanpa pemberitahuan — persis seperti yang terjadi pada Ox Alpha). Kalau `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` suatu saat error "model tidak ditemukan", cek daftar model gratis terbaru di [openrouter.ai/models](https://openrouter.ai/models) (filter "Free"), lalu ganti `DEFAULT_MODEL` di `.env` atau edit objek `MODELS` di `server.js`.
 
@@ -154,6 +154,9 @@ Kalau butuh upload video, pakai Opsi A (Render dkk), bukan Vercel.
 ---
 
 ## Batasan yang perlu diketahui
+
+- **Nama model disederhanakan menjadi "Roum AI Pro"** di UI — di balik layar tetap otomatis mencoba beberapa model gratis (dan Gemini langsung kalau `GEMINI_API_KEY` diisi) secara berurutan. Daftar lengkapnya ada di `server.js`/`lib/vercel-shared.js` kalau suatu saat perlu diedit/ditambah.
+- **Blok kode HTML punya tombol Preview** (selain Copy & Download) — klik untuk lihat hasil render-nya langsung di dalam app (pakai `<iframe sandbox>`, aman dari script yang mencoba mengakses halaman utama).
 
 - **Riwayat chat** tersimpan di `localStorage` browser masing-masing perangkat — tidak sinkron antar perangkat/browser, dan bisa hilang jika cache browser dibersihkan.
 - Lampiran gambar/video ikut tersimpan di localStorage sebagai base64. Browser membatasi localStorage (biasanya beberapa MB), jadi di percakapan yang sangat panjang dengan banyak lampiran besar, lampiran lama bisa otomatis "dilepas" dari riwayat tersimpan (teks tetap aman) — akan muncul notifikasi kalau ini terjadi.

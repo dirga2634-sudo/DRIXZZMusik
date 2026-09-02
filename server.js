@@ -25,7 +25,12 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const SYSTEM_PROMPT =
-  'You are Roum AI, a sharp and friendly assistant. Format answers with Markdown, always use fenced code blocks with a language tag for code, and be concise but thorough.';
+  'You are Roum AI, a helpful assistant built for this app — that is your one and only identity. ' +
+  'If asked who made you, what company is behind you, what model or AI you are, or anything about your origin/architecture, ' +
+  'always simply say you are Roum AI. Never mention OpenRouter, or any underlying AI provider, company, or model name ' +
+  '(e.g. Google, NVIDIA, Anthropic, Z.ai, MiniMax, GLM, Gemini, Nemotron, Claude, GPT) — those are internal implementation ' +
+  'details the user does not see. Format answers with Markdown, always use fenced code blocks with a language tag for code, ' +
+  'and be concise but thorough.';
 
 /**
  * Katalog model yang diizinkan (allowlist). Frontend hanya boleh memilih salah
@@ -37,10 +42,9 @@ const SYSTEM_PROMPT =
 const MODELS = {
   'auto:free': {
     id: 'auto:free',
-    label: 'Auto (Gratis)',
-    tag: 'Gratis · Otomatis',
-    description:
-      'Pilihan default — otomatis pakai model gratis mana pun yang lagi tersedia (GLM 5.2 → Nemotron 3 Ultra → MiniMax M3 → Nemotron 3 Super → Inkling → Nemotron Nano Omni), gantian sendiri kalau salah satu lagi penuh. Tidak perlu pilih manual.',
+    label: 'Roum AI Pro',
+    tag: 'Model utama',
+    description: 'Model utama Roum AI — cepat, cerdas, dan selalu berusaha memberi jawaban terbaik untuk pertanyaan, coding, maupun analisis gambar.',
     supportsImage: true,
     supportsVideo: true,
     maxOutputTokens: 8192,
@@ -359,8 +363,11 @@ function validateAttachments(messages, modelConfig) {
 // ---------- Routes ----------
 
 app.get('/api/models', (req, res) => {
+  // Sengaja HANYA mengekspos "Roum AI Pro" ke frontend — model-model asli di
+  // balik layar (GLM, Nemotron, Gemini, dst — masih lengkap di objek MODELS di
+  // atas dan tetap dipakai oleh buildFallbackCandidates) tidak ditampilkan ke user.
   res.json({
-    models: Object.values(MODELS),
+    models: [MODELS[DEFAULT_MODEL_ID]],
     default: DEFAULT_MODEL_ID,
     maxImageBytes: MAX_IMAGE_BYTES,
     maxVideoBytes: MAX_VIDEO_BYTES,
@@ -415,64 +422,136 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     ...buildOpenRouterMessages(messages),
   ];
 
-  const controller = new AbortController();
-  req.on('close', () => controller.abort());
+  // Semua controller yang lagi aktif (baik yang lagi race paralel maupun yang
+  // sequential belakangan) dicatat di sini, supaya kalau CLIENT memutus koneksi
+  // (tutup tab / klik Stop), semuanya langsung ikut berhenti sekaligus.
+  const activeControllers = new Set();
+  let clientClosed = false;
+  req.on('close', () => {
+    clientClosed = true;
+    for (const c of activeControllers) c.abort();
+  });
 
+  /** Tembak SATU kandidat (OpenRouter atau Gemini-direct, tergantung provider-nya). */
+  function attemptCandidate(candidate) {
+    const controller = new AbortController();
+    activeControllers.add(controller);
+    const cleanup = () => activeControllers.delete(controller);
+
+    let promise;
+    if (candidate.provider === 'google') {
+      promise = !GEMINI_API_KEY
+        ? Promise.reject(Object.assign(new Error('GEMINI_API_KEY belum diisi.'), { roumStatus: 500 }))
+        : fetchGeminiDirect(candidate, messages, reasoningEffort, controller.signal);
+    } else if (!OPENROUTER_API_KEY) {
+      promise = Promise.reject(Object.assign(new Error('OPENROUTER_API_KEY belum diisi.'), { roumStatus: 500 }));
+    } else {
+      const payload = {
+        model: candidate.id,
+        messages: orMessages,
+        stream: true,
+        max_tokens: candidate.maxOutputTokens,
+      };
+      if (reasoningEffort && reasoningEffort !== 'none') payload.reasoning = { effort: reasoningEffort };
+      promise = fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': SITE_URL,
+          'X-Title': 'Roum AI',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    }
+    promise.then(cleanup, cleanup);
+    return { candidate, controller, promise };
+  }
+
+  /**
+   * Tembak SEMUA kandidat di `group` SEKALIGUS (paralel, bukan gantian) — pakai
+   * siapa pun yang pertama merespons sukses, kandidat lain di grup yang sama
+   * langsung di-abort supaya tidak terus jalan sia-sia.
+   */
+  async function raceGroup(group) {
+    if (group.length === 0) return { winner: null, failures: [] };
+    const attempts = group.map((candidate) => attemptCandidate(candidate));
+    const failures = [];
+    let pending = attempts.length;
+
+    return new Promise((resolve) => {
+      for (const { candidate, controller, promise } of attempts) {
+        promise
+          .then(async (response) => {
+            if (response.ok) {
+              for (const other of attempts) {
+                if (other.candidate !== candidate) other.controller.abort();
+              }
+              resolve({ winner: { candidate, response }, failures });
+            } else {
+              let detail = '';
+              try { const j = await response.json(); detail = (j && j.error && j.error.message) || ''; } catch (_) {}
+              failures.push({ status: response.status, detail });
+              pending--;
+              if (pending === 0) resolve({ winner: null, failures });
+            }
+          })
+          .catch((err) => {
+            if (err.name === 'AbortError') { pending--; if (pending === 0) resolve({ winner: null, failures }); return; }
+            failures.push({ status: err.roumStatus || 502, detail: err.message });
+            pending--;
+            if (pending === 0) resolve({ winner: null, failures });
+          });
+      }
+    });
+  }
+
+  const RACE_GROUP_SIZE = 3; // tembak 3 kandidat teratas sekaligus — dijaga tidak SEMUA, biar jatah harian model gratis tidak habis 6-7x lebih cepat
   let upstream = null;
   let usedModel = candidates[0];
   let lastStatus = 502;
   let lastDetail = '';
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i];
-    let attempt;
-    try {
-      if (candidate.provider === 'google') {
-        if (!GEMINI_API_KEY) { lastStatus = 500; lastDetail = 'GEMINI_API_KEY belum diisi.'; continue; }
-        attempt = await fetchGeminiDirect(candidate, messages, reasoningEffort, controller.signal);
-      } else {
-        const payload = {
-          model: candidate.id,
-          messages: orMessages,
-          stream: true,
-          max_tokens: candidate.maxOutputTokens,
-        };
-        if (reasoningEffort && reasoningEffort !== 'none') payload.reasoning = { effort: reasoningEffort };
-        attempt = await fetch(OPENROUTER_URL, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': SITE_URL,
-            'X-Title': 'Roum AI',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
+  const raceResult = await raceGroup(candidates.slice(0, RACE_GROUP_SIZE));
+  if (clientClosed) return res.end();
+
+  if (raceResult.winner) {
+    upstream = raceResult.winner.response;
+    usedModel = raceResult.winner.candidate;
+  } else {
+    if (raceResult.failures.length) {
+      const last = raceResult.failures[raceResult.failures.length - 1];
+      lastStatus = last.status;
+      lastDetail = last.detail;
+    }
+    // Grup pertama gagal semua — sisanya dicoba satu-satu sebagai cadangan terakhir.
+    for (const candidate of candidates.slice(RACE_GROUP_SIZE)) {
+      if (clientClosed) return res.end();
+      let attempt;
+      try {
+        attempt = await attemptCandidate(candidate).promise;
+      } catch (err) {
+        if (err.name === 'AbortError') return res.end();
+        lastStatus = err.roumStatus || 502;
+        lastDetail = err.message || 'Tidak bisa menghubungi provider AI.';
+        continue;
       }
-    } catch (err) {
-      if (err.name === 'AbortError') return res.end();
-      lastStatus = 502;
-      lastDetail = 'Tidak bisa menghubungi provider AI. Periksa koneksi internet server.';
-      continue;
+      if (attempt.ok) {
+        upstream = attempt;
+        usedModel = candidate;
+        break;
+      }
+      lastStatus = attempt.status;
+      try {
+        const errJson = await attempt.json();
+        lastDetail = (errJson && errJson.error && errJson.error.message) || '';
+      } catch (_) {
+        /* respons error bukan JSON, abaikan */
+      }
+      const isRetryable = attempt.status === 429 || attempt.status === 404 || attempt.status === 403;
+      if (!isRetryable) break;
     }
-
-    if (attempt.ok) {
-      upstream = attempt;
-      usedModel = candidate;
-      break;
-    }
-
-    lastStatus = attempt.status;
-    try {
-      const errJson = await attempt.json();
-      lastDetail = (errJson && errJson.error && errJson.error.message) || '';
-    } catch (_) {
-      /* respons error bukan JSON, abaikan */
-    }
-    // 429 (rate limit) / 404 (model tidak tersedia) / 403 (kunci Gemini ditolak) → layak coba kandidat berikutnya.
-    const isRetryable = attempt.status === 429 || attempt.status === 404 || attempt.status === 403;
-    if (!isRetryable) break; // error lain (401/402/dst) tidak akan hilang dengan ganti model, langsung berhenti
   }
 
   if (!upstream) {
@@ -481,10 +560,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       402: 'Kredit OpenRouter tidak cukup untuk model ini.',
       403: 'API key ditolak (cek GEMINI_API_KEY jika sedang mencoba model Gemini).',
       404: 'Model tidak ditemukan atau sedang tidak tersedia.',
-      429:
-        candidates.length > 1
-          ? 'Semua model gratis sedang penuh, coba lagi sebentar lagi.'
-          : 'Rate limit tercapai, coba lagi sebentar lagi.',
+      429: 'Semua model sedang penuh, coba lagi sebentar lagi.',
       500: lastDetail || 'Server belum dikonfigurasi untuk model ini.',
     };
     const msg = friendly[lastStatus] || (lastDetail || `Provider mengembalikan error (status ${lastStatus}).`);
