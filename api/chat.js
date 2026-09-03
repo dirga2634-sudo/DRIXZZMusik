@@ -1,11 +1,11 @@
 const {
   OPENROUTER_URL,
+  GEMINI_BASE_URL,
   getModel,
   buildOpenRouterMessages,
   validateAttachments,
   systemPrompt,
   buildFallbackCandidates,
-  fetchGeminiDirect,
   pipeGeminiAsOpenAiStream,
 } = require('../lib/vercel-shared');
 
@@ -48,28 +48,25 @@ module.exports = async (req, res) => {
     clientClosed = true;
     for (const c of activeControllers) c.abort();
   });
-
-  function attemptCandidate(candidate) {
+  function trackController() {
     const controller = new AbortController();
     activeControllers.add(controller);
-    const cleanup = () => activeControllers.delete(controller);
+    return { controller, release: () => activeControllers.delete(controller) };
+  }
 
-    let promise;
-    if (candidate.provider === 'google') {
-      promise = !GEMINI_API_KEY
-        ? Promise.reject(Object.assign(new Error('GEMINI_API_KEY belum diisi.'), { roumStatus: 500 }))
-        : fetchGeminiDirect(candidate, messages, reasoningEffort, controller.signal, GEMINI_API_KEY);
-    } else if (!OPENROUTER_API_KEY) {
-      promise = Promise.reject(Object.assign(new Error('OPENROUTER_API_KEY belum diisi.'), { roumStatus: 500 }));
-    } else {
-      const payload = {
-        model: candidate.id,
-        messages: orMessages,
-        stream: true,
-        max_tokens: candidate.maxOutputTokens,
-      };
-      if (reasoningEffort && reasoningEffort !== 'none') payload.reasoning = { effort: reasoningEffort };
-      promise = fetch(OPENROUTER_URL, {
+  // === FASE 1: kumpulkan draf jawaban dari beberapa model SEKALIGUS (paralel) ===
+  // Lihat catatan lebih lengkap di server.js — intinya: bukan lomba cepat-cepatan,
+  // tapi sengaja MENUNGGU beberapa model selesai supaya ada beberapa draf untuk
+  // digabung di Fase 2. Sengaja OpenRouter-only untuk fase ini.
+  const DRAFT_COUNT = 3;
+  const draftCandidates = candidates.filter((c) => c.provider !== 'google').slice(0, DRAFT_COUNT);
+
+  async function getDraftText(candidate) {
+    const { controller, release } = trackController();
+    try {
+      if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY belum diisi.');
+      const payload = { model: candidate.id, messages: orMessages, stream: false, max_tokens: candidate.maxOutputTokens };
+      const response = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
@@ -80,14 +77,85 @@ module.exports = async (req, res) => {
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+      if (!response.ok) throw new Error(`status ${response.status}`);
+      const json = await response.json();
+      const text = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+      if (!text) throw new Error('respons draf kosong');
+      return { candidate, text };
+    } finally {
+      release();
     }
-    promise.then(cleanup, cleanup);
+  }
+
+  const draftSettled = await Promise.allSettled(draftCandidates.map(getDraftText));
+  if (clientClosed) return res.end();
+  const successfulDrafts = draftSettled.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+
+  if (successfulDrafts.length === 0) {
+    return res.status(502).json({ error: 'Semua draf jawaban gagal didapat (provider sedang bermasalah), coba lagi sebentar lagi.' });
+  }
+
+  // === FASE 2: sintesis semua draf jadi SATU jawaban final (ini yang di-stream) ===
+  const lastUserMsg = [...messages].reverse().find((m) => m.role !== 'assistant');
+  const lastUserText = (lastUserMsg && lastUserMsg.content) || '';
+  const draftsBlock = successfulDrafts.map((d, i) => `--- Draf ${i + 1} ---\n${d.text}`).join('\n\n');
+  const synthesisSystemPrompt =
+    systemPrompt() +
+    ' Untuk pesan ini secara khusus, kamu diberi beberapa draf jawaban independen dari beberapa sistem AI berbeda untuk pertanyaan yang sama. ' +
+    'Gabungkan bagian terbaik dari tiap draf, perbaiki kesalahan yang kamu lihat, selesaikan kalau ada yang saling bertentangan, dan tulis SATU jawaban ' +
+    'final yang logis, jelas, dan enak dibaca. Tulis langsung sebagai jawabanmu sendiri — jangan sebut kata "draf", "beberapa AI", atau proses penggabungan ini sama sekali.';
+  const synthesisUserText = `Pertanyaan pengguna:\n${lastUserText}\n\n${draftsBlock}`;
+
+  function attemptSynthesis(candidate) {
+    const { controller, release } = trackController();
+    let promise;
+    if (candidate.provider === 'google') {
+      const genConfig = { maxOutputTokens: candidate.maxOutputTokens };
+      if (reasoningEffort && reasoningEffort !== 'none') genConfig.thinkingConfig = { includeThoughts: true };
+      promise = !GEMINI_API_KEY
+        ? Promise.reject(Object.assign(new Error('GEMINI_API_KEY belum diisi.'), { roumStatus: 500 }))
+        : fetch(`${GEMINI_BASE_URL}/${candidate.geminiModel}:streamGenerateContent?alt=sse`, {
+            method: 'POST',
+            headers: { 'x-goog-api-key': GEMINI_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: synthesisUserText }] }],
+              systemInstruction: { parts: [{ text: synthesisSystemPrompt }] },
+              generationConfig: genConfig,
+            }),
+            signal: controller.signal,
+          });
+    } else if (!OPENROUTER_API_KEY) {
+      promise = Promise.reject(Object.assign(new Error('OPENROUTER_API_KEY belum diisi.'), { roumStatus: 500 }));
+    } else {
+      const orPayload = {
+        model: candidate.id,
+        messages: [
+          { role: 'system', content: synthesisSystemPrompt },
+          { role: 'user', content: synthesisUserText },
+        ],
+        stream: true,
+        max_tokens: candidate.maxOutputTokens,
+      };
+      if (reasoningEffort && reasoningEffort !== 'none') orPayload.reasoning = { effort: reasoningEffort };
+      promise = fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.SITE_URL || 'https://vercel.com',
+          'X-Title': 'Roum AI',
+        },
+        body: JSON.stringify(orPayload),
+        signal: controller.signal,
+      });
+    }
+    promise.then(release, release);
     return { candidate, controller, promise };
   }
 
   async function raceGroup(group) {
     if (group.length === 0) return { winner: null, failures: [] };
-    const attempts = group.map((candidate) => attemptCandidate(candidate));
+    const attempts = group.map((candidate) => attemptSynthesis(candidate));
     const failures = [];
     let pending = attempts.length;
 
@@ -118,13 +186,18 @@ module.exports = async (req, res) => {
     });
   }
 
-  const RACE_GROUP_SIZE = candidates.length; // tembak SEMUA kandidat yang cocok sekaligus
+  const OPENROUTER_RACE_CAP = 4;
+  const openRouterCandidates = candidates.filter((c) => c.provider !== 'google');
+  const googleCandidates = candidates.filter((c) => c.provider === 'google');
+  const raceGroupCandidates = [...openRouterCandidates.slice(0, OPENROUTER_RACE_CAP), ...googleCandidates];
+  const remainderCandidates = openRouterCandidates.slice(OPENROUTER_RACE_CAP);
+
   let upstream = null;
   let usedModel = candidates[0];
   let lastStatus = 502;
   let lastDetail = '';
 
-  const raceResult = await raceGroup(candidates.slice(0, RACE_GROUP_SIZE));
+  const raceResult = await raceGroup(raceGroupCandidates);
   if (clientClosed) return res.end();
 
   if (raceResult.winner) {
@@ -136,11 +209,11 @@ module.exports = async (req, res) => {
       lastStatus = last.status;
       lastDetail = last.detail;
     }
-    for (const candidate of candidates.slice(RACE_GROUP_SIZE)) {
+    for (const candidate of remainderCandidates) {
       if (clientClosed) return res.end();
       let attempt;
       try {
-        attempt = await attemptCandidate(candidate).promise;
+        attempt = await attemptSynthesis(candidate).promise;
       } catch (err) {
         if (err.name === 'AbortError') return res.end();
         lastStatus = err.roumStatus || 502;
