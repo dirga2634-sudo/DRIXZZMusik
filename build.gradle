@@ -1,0 +1,11 @@
+// Top-level build file for Gomouse Pro.
+// Plugin versions are declared here (with apply false) and actually
+// applied in app/build.gradle. This keeps a single source of truth
+// for the Android Gradle Plugin version used across the project.
+plugins {
+    id 'com.android.application' version '9.3.0' apply false
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

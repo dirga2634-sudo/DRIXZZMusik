@@ -1,192 +1,156 @@
-# Roum AI
+# Gomouse Pro
 
-AI chat web app bertema *dark futuristic* dengan logo "RM", memakai **OpenRouter API** sebagai gateway model AI. Backend Express menjadi proxy sehingga API key tidak pernah menyentuh browser.
+Keymapper/controller mapper untuk Android — konsep seperti GGMouse, tapi branding, UI, logo, dan seluruh implementasinya orisinal. Memetakan keyboard, mouse, dan controller ke touch di layar lewat editor visual, memakai **hanya API resmi Android** (AccessibilityService gesture dispatch, overlay window, pointer capture) — tanpa root, tanpa exploit, tanpa API tersembunyi.
 
-- Frontend: HTML5 + CSS3 + JavaScript vanilla (tanpa build step)
-- Backend: Node.js + Express (proxy `/api/chat`, streaming SSE)
-- Markdown, syntax highlighting & sanitizer dimuat dari CDN: `marked`, `highlight.js`, `DOMPurify`
-- Riwayat chat disimpan di **localStorage** browser (bukan di server)
+Dibuat untuk dibangun 100% lewat **GitHub Actions** — tidak perlu Android Studio atau ADB sama sekali.
 
 ---
 
-## 1. Model yang dipakai
+## 1. Struktur Repository
 
-Roum AI **tidak dikunci ke satu model** — tersedia beberapa pilihan yang bisa diganti kapan saja lewat menu **Settings → Model**:
+```
+Gomouse-Pro/
+├── .github/workflows/
+│   ├── build.yml                  # build debug otomatis tiap push + manual trigger
+│   └── release.yml                # build release + GitHub Release otomatis
+├── app/
+│   ├── build.gradle                # dependencies, SDK versions, signing conditional
+│   ├── proguard-rules.pro
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/gomouse/pro/
+│       │   ├── GomouseApplication.java
+│       │   ├── model/              # InputMapping, Profile, ActionType, dll — data class
+│       │   ├── storage/            # ProfileRepository — simpan/baca profile JSON lokal
+│       │   ├── service/            # GomouseAccessibilityService (engine keymapping),
+│       │   │                       # OverlayService (window overlay + foreground service)
+│       │   ├── overlay/            # OverlayRootView, OverlayButtonView — render saat main
+│       │   ├── editor/             # EditorActivity, EditorCanvasView, EditMappingDialog
+│       │   ├── ui/                 # MainActivity, SettingsActivity, adapter RecyclerView
+│       │   └── util/               # GestureBuilder, PermissionUtils, InputCodeUtils, dll
+│       └── res/                    # layout, drawable (vector, tanpa aset GGMouse), values, xml
+├── build.gradle                    # root: deklarasi versi Android Gradle Plugin
+├── settings.gradle
+├── gradle.properties
+├── gradlew / gradlew.bat
+├── gradle/wrapper/gradle-wrapper.properties
+├── .gitignore
+└── README.md                       # file ini
+```
 
-| Model | Kelebihan |
+### Kenapa `gradle-wrapper.jar` tidak ikut di-commit
+
+`gradle-wrapper.jar` adalah file **binary**, bukan teks — jadi bukan sesuatu yang aman untuk dibuat manual lewat proses seperti ini. Daripada menyertakan file binary yang tidak bisa diverifikasi, kedua workflow (`build.yml` dan `release.yml`) punya langkah **"Regenerate Gradle wrapper"** yang menjalankan `gradle wrapper --gradle-version 9.5.0` di awal build — jadi `gradlew` selalu lengkap dan konsisten dengan versi Gradle yang dipakai, setiap kali CI jalan, tanpa kamu perlu melakukan apa pun. `gradlew` (script shell) dan `gradlew.bat` sendiri sudah ikut di-commit seperti biasa karena keduanya file teks biasa.
+
+Kalau suatu saat kamu punya akses ke komputer dengan Gradle terpasang, kamu juga bisa menjalankan `gradle wrapper --gradle-version 9.5.0` sendiri di root project untuk menghasilkan jar yang sama persis.
+
+---
+
+## 2. Cara Upload ke GitHub
+
+Dari HP kamu (MGit atau Code on the Go), alurnya sama seperti project Android lain yang biasa kamu push:
+
+1. Extract folder `Gomouse-Pro` hasil zip ini.
+2. Inisialisasi repo git di folder tersebut (`git init` kalau pakai terminal/Code on the Go), atau buat repo baru langsung di GitHub lalu import foldernya lewat MGit.
+3. Commit semua file:
+   ```
+   git add .
+   git commit -m "Initial commit: Gomouse Pro"
+   ```
+4. Tambahkan remote dan push:
+   ```
+   git remote add origin https://github.com/<username>/Gomouse-Pro.git
+   git branch -M main
+   git push -u origin main
+   ```
+5. Push pertama ke branch `main` ini otomatis memicu `build.yml`.
+
+---
+
+## 3. Cara Menjalankan GitHub Actions
+
+- **Otomatis**: setiap `git push` ke branch `main` (atau pull request ke `main`) langsung menjalankan `build.yml`.
+- **Manual**: buka tab **Actions** di repo GitHub → pilih workflow **"Build Gomouse Pro"** di sidebar kiri → klik **"Run workflow"** → pilih `assembleDebug` atau `assembleRelease` → **Run workflow**.
+- **Release**: push tag versi (`git tag v1.0.0 && git push origin v1.0.0`), atau jalankan workflow **"Release Gomouse Pro"** secara manual dari tab Actions dan isi version name-nya.
+
+---
+
+## 4. Lokasi APK Hasil Build
+
+Setiap run `build.yml` yang sukses akan menghasilkan **Artifact** bernama `gomouse-pro-assembleDebug-<nomor_run>` (atau `assembleRelease`) yang bisa diunduh di:
+
+**Actions → (pilih run yang sukses, tanda centang hijau) → bagian "Artifacts" di bagian bawah halaman run tersebut.**
+
+Artifact ini berisi file `.apk` langsung dari `app/build/outputs/apk/debug/` (atau `/release/`). Unduh, lalu install seperti APK biasa (aktifkan "Install from unknown sources" kalau diminta).
+
+Untuk `release.yml`, APK juga otomatis dilampirkan ke halaman **Releases** repo (Releases → versi terkait → assets di bagian bawah).
+
+---
+
+## 5. Cara Membuat Release APK Bertanda Tangan (Signed)
+
+Tanpa 4 secret di bawah, `release.yml` **tetap jalan** tapi menghasilkan APK **debug** (bukan fake-signed release — sesuai instruksi, kami tidak pernah membuat signing config palsu). Untuk release APK yang benar-benar ditandatangani:
+
+### a. Buat keystore (sekali saja, lewat mesin mana pun yang punya JDK — atau minta tolong siapa pun yang punya laptop sebentar)
+```
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore release.keystore \
+  -alias gomouse-pro \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+Simpan `release.keystore` dan ingat password + alias yang kamu masukkan.
+
+### b. Encode keystore ke base64
+```
+base64 -w0 release.keystore > release.keystore.b64
+```
+(di Windows/PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Out-File release.keystore.b64`)
+
+### c. Tambahkan 4 GitHub Secrets
+Buka **Settings → Secrets and variables → Actions → New repository secret** di repo GitHub, tambahkan:
+
+| Nama secret | Isi |
 |---|---|
-| **Auto (Gratis)** — default | Bukan model sungguhan — ini "meta-pilihan" yang otomatis mencoba GLM 5.2 → Nemotron 3 Ultra → MiniMax M3 → Nemotron 3 Super → Inkling → Nemotron Nano Omni → (Gemini Flash langsung, kalau `GEMINI_API_KEY` diisi) secara berurutan, pakai yang pertama berhasil. Nggak perlu mikirin pilih model gratis yang mana. |
-| **GLM 5.2 (Free)** (`z-ai/glm-5.2:free`) | **Gratis**, kualitas terbaik untuk coding + obrolan biasa di antara model gratis OpenRouter. Teks saja. |
-| **Nemotron 3 Ultra (Free)** (`nvidia/nemotron-3-ultra-550b-a55b:free`) | **Gratis**, model gratis paling banyak dipakai di OpenRouter — frontier reasoning NVIDIA. Teks saja. |
-| **MiniMax M3 (Free)** (`minimax/minimax-m3:free`) | **Gratis**, multimodal (gambar & video), konteks ~1M token, salah satu model gratis terpopuler. |
-| **Inkling (Free)** (`thinkingmachines/inkling:free`) | **Gratis**, multimodal (gambar & audio) dari Thinking Machines Lab, konteks ~1M token. |
-| **Nemotron 3 Super (Free)** (`nvidia/nemotron-3-super-120b-a12b:free`) | **Gratis**, model NVIDIA besar, kuat di reasoning/coding/agentic. Teks saja. |
-| **Nemotron Nano Omni** (`nvidia/...:free`) | **Gratis**, multimodal (gambar & video). Kualitas coding/obrolan di bawah yang lain. |
-| **Gemini Flash (Free · langsung Google)** (`google-direct/gemini-flash-latest`) | **Gratis**, tapi lewat kuota API Google AI Studio-mu sendiri, BUKAN lewat OpenRouter — jadi tetap jalan walau semua model gratis OpenRouter penuh. Butuh `GEMINI_API_KEY` sendiri (lihat bagian 4b). |
-| **GLM-5.3 Flash** (`z-ai/glm-5.3-flash`) | Sebelumnya sempat tampil sebagai preview gratis "Ox Alpha". Konteks 1M token, gambar & video, reasoning. Berbayar tapi sangat murah per token. |
-| **Claude Sonnet 5** (`anthropic/claude-sonnet-5`) | Reasoning & analisis file/gambar paling kuat, effort reasoning bisa diatur. Tidak mendukung video. Harga menengah. |
-| **Gemini 3 Pro** (`google/gemini-3-pro-preview`) | Paling kuat untuk video, audio, gambar, dan dokumen sekaligus (lewat OpenRouter, berbayar). Harga menengah. |
+| `KEYSTORE_BASE64` | isi file `release.keystore.b64` |
+| `KEYSTORE_PASSWORD` | password keystore kamu |
+| `KEY_ALIAS` | `gomouse-pro` (atau alias yang kamu pakai) |
+| `KEY_PASSWORD` | password key kamu |
 
-**"Auto (Gratis)" itu apa persisnya?** Ini bukan model API sungguhan — cuma penanda internal. Saat dipilih, server langsung mencoba seluruh rantai model gratis di atas satu-satu (skip yang tidak cocok kalau ada lampiran gambar/video), pakai yang pertama merespons sukses. Kalau mau PAKSA satu model gratis tertentu (bukan auto), pilih model itu langsung di daftar — perilakunya sama saja karena tetap ada fallback ke yang lain kalau dia penuh, cuma urutan prioritasnya beda.
-
-Defaultnya sengaja diset ke model **gratis** supaya Roum AI langsung bisa dipakai walau saldo OpenRouter $0. Begitu ada saldo, ganti ke GLM-5.3 Flash/Claude/Gemini di Settings buat kualitas yang lebih baik.
-
-**Cara kerja "Roum AI Pro" di balik layar:** setiap pesan diproses lewat 2 tahap:
-
-1. **Kumpulkan draf** — pertanyaan kamu dikirim ke 3 model gratis SEKALIGUS (paralel), lalu ditunggu jawabannya (bukan lomba cepat-cepatan, sengaja ditunggu semua supaya dapat beberapa sudut pandang). Kalau ada yang gagal, yang sukses tetap dipakai.
-2. **Sintesis jadi satu jawaban** — semua draf yang berhasil digabung jadi satu prompt, dikirim ke satu model untuk ditulis ulang jadi SATU jawaban final yang logis, jelas, dan menggabungkan hal terbaik dari tiap draf. Inilah yang benar-benar diketik/di-stream ke layar kamu. Pemilihan model untuk tahap ini pakai sistem race+fallback (request ke OpenRouter dibatasi 4 bersamaan biar tidak kena limit concurrent, Gemini-direct selalu ikut karena jalurnya terpisah).
-
-Konsekuensinya: jawaban pertama kali muncul agak lebih lambat dari sebelumnya (nunggu 3 draf dulu), tapi kualitasnya harusnya lebih baik karena hasil gabungan, bukan cuma satu model. Ini juga berarti tiap pesan makan ~4 request (3 draf + 1 sintesis), jadi jatah harian model gratis lebih cepat habis dibanding kalau cuma 1 request per pesan. Semua ini terjadi diam-diam di belakang layar — tidak ada notifikasi draf/provider mana yang dipakai. Model berbayar (kalau dipilih manual, bukan lewat "Roum AI Pro") tidak ikut sistem draf+sintesis ini — langsung dipanggil satu kali seperti biasa.
-
-⚠️ **Model gratis di OpenRouter itu daftarnya berubah-ubah** (bisa ditarik atau diganti provider tanpa pemberitahuan — persis seperti yang terjadi pada Ox Alpha). Kalau `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` suatu saat error "model tidak ditemukan", cek daftar model gratis terbaru di [openrouter.ai/models](https://openrouter.ai/models) (filter "Free"), lalu ganti `DEFAULT_MODEL` di `.env` atau edit objek `MODELS` di `server.js`.
+### d. Jalankan release
+Push tag baru (`git tag v1.0.1 && git push origin v1.0.1`) atau jalankan workflow **Release Gomouse Pro** manual. Begitu ke-4 secret terisi, `release.yml` otomatis mendeteksinya dan mem-build `assembleRelease` yang sudah ditandatangani.
 
 ---
 
-## 2. Cara install Node.js
+## 6. Troubleshooting Kalau Gradle Gagal
 
-1. Buka [nodejs.org](https://nodejs.org/), unduh versi **LTS** (minimal Node.js 18, disarankan versi LTS terbaru).
-2. Install seperti aplikasi biasa (Windows/Mac) atau lewat package manager (Linux, mis. `sudo apt install nodejs npm`).
-3. Cek berhasil dengan:
-   ```
-   node -v
-   npm -v
-   ```
+Log lengkap selalu ada di **Actions → run yang gagal (tanda silang merah) → klik step "Build with Gradle"** — ini menampilkan stack trace Gradle apa adanya (workflow sengaja pakai `--stacktrace --info` dan tidak menyembunyikan error).
 
-## 3. Cara install dependency
+Masalah paling umum:
 
-Buka terminal di folder `roum-ai/`, lalu jalankan:
-
-```
-npm install
-```
-
-Perintah ini akan memasang `express`, `cors`, `dotenv`, dan `express-rate-limit` sesuai `package.json`.
-
-## 4. Cara membuat API key OpenRouter
-
-1. Buka [openrouter.ai](https://openrouter.ai/) dan buat akun (bisa login dengan Google/GitHub).
-2. Masuk ke halaman **[openrouter.ai/keys](https://openrouter.ai/keys)**.
-3. Klik **Create Key**, beri nama bebas (misalnya "Roum AI"), lalu salin key yang muncul (formatnya `sk-or-v1-...`).
-   > Key hanya ditampilkan sekali — simpan baik-baik.
-4. Model default Roum AI (Auto/GLM 5.2/dkk) **gratis** dan tidak butuh saldo sama sekali. Model lain (GLM-5.3 Flash, Claude Sonnet 5, Gemini 3 Pro) berbayar per-token — kalau nanti mau coba, isi saldo/credit dulu di halaman **Credits** (harga bervariasi, cek [openrouter.ai/models](https://openrouter.ai/models)).
-
-## 4b. (Opsional) Cara membuat API key Gemini langsung dari Google
-
-Ini terpisah dari OpenRouter — kalau diisi, Roum AI dapat SATU lagi jalur gratis yang independen (model "Gemini Flash (Free · langsung Google)"), pakai kuota gratis akun Google-mu sendiri.
-
-1. Buka **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)**, login dengan akun Google.
-2. Klik **Create API key**, salin key yang muncul.
-3. Tempel ke `.env` sebagai `GEMINI_API_KEY=...`.
-
-> Catatan: key Gemini yang baru dibuat sekarang bisa berformat `AQ....` (bukan `AIzaSy...` seperti dulu) — itu normal, Google sedang migrasi format. Roum AI sudah menangani kedua format ini karena manggil API Google langsung, bukan lewat wrapper OpenAI-compatible yang biasanya menolak format baru ini.
-
-## 5. Cara memasukkan API key ke .env
-
-1. Di folder `roum-ai/`, salin `.env.example` menjadi `.env`:
-   ```
-   cp .env.example .env
-   ```
-   (Windows CMD: `copy .env.example .env`)
-2. Buka `.env`, isi baris berikut dengan key asli kamu:
-   ```
-   OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-   ```
-3. Simpan file. **Jangan pernah** commit atau membagikan file `.env` ini — sudah otomatis diabaikan oleh `.gitignore`.
-
-> ⚠️ **Catatan keamanan:** kamu sempat menempelkan sebuah API key OpenRouter langsung di chat ini. Karena sudah tercatat di riwayat percakapan, sebaiknya anggap key itu terekspos — buka [openrouter.ai/keys](https://openrouter.ai/keys), hapus/regenerate key lama, lalu pakai key **baru** di `.env`. Ke depannya, key cukup ditaruh langsung di file `.env`, tidak perlu dikirim lewat chat manapun.
-
-## 6. Cara menjalankan Roum AI
-
-```
-npm start
-```
-
-Lalu buka **http://localhost:3000** di browser. Untuk mode development dengan auto-restart saat file berubah, dan kalau `nodemon` sudah ter-install lewat `npm install`:
-
-```
-npm run dev
-```
-
-Titik hijau di sebelah nama model (pojok kiri atas area chat) menandakan server sudah terhubung dengan API key yang valid. Titik merah = `OPENROUTER_API_KEY` belum/tidak terbaca.
-
-## 7. Cara membuka website dari HP
-
-**Opsi A — satu jaringan WiFi (untuk uji coba lokal):**
-1. Pastikan laptop/PC dan HP terhubung ke WiFi yang sama.
-2. Cari alamat IP lokal laptop:
-   - Windows: `ipconfig` → lihat "IPv4 Address" (contoh `192.168.1.5`)
-   - Mac/Linux: `ifconfig` atau `ip addr` → cari alamat `192.168.x.x`
-3. Jalankan server (`npm start`), lalu di HP buka browser ke `http://192.168.1.5:3000` (ganti dengan IP laptop kamu).
-
-**Opsi B — bisa diakses dari mana saja:** deploy ke hosting (lihat bagian 8), lalu buka URL publiknya dari HP.
-
-## 8. Cara deploy ke hosting
-
-Roum AI punya **dua backend siap pakai** tergantung platform tujuan — keduanya memakai frontend yang sama persis di `public/`:
-
-- `server.js` → untuk hosting yang menjalankan Node.js sungguhan (proses hidup terus): **Render, Railway, Fly.io, VPS, atau lokal/Termux**.
-- folder `api/` → untuk **Vercel** (serverless functions, bukan proses yang hidup terus).
-
-**Netlify sengaja tidak didukung** untuk versi ini: Netlify hanya cocok untuk file statis, dan format serverless function-nya tidak mendukung *streaming* respons AI dengan baik (jawaban akan muncul sekaligus di akhir, bukan mengetik langsung) — jadi pengalaman chat-nya jelek. Kalau targetnya "gratis + gampang + full-Node", **Render** lebih pas dari Netlify.
-
-### Opsi A — Render / Railway / Fly.io / VPS (pakai `server.js`)
-
-1. Push folder project ini ke repository GitHub (pastikan `.env` **tidak** ikut ter-commit — cek `.gitignore`).
-2. Di dashboard platform pilihan, buat *Web Service* baru dan hubungkan ke repo tersebut.
-3. Atur:
-   - **Build command:** `npm install`
-   - **Start command:** `npm start`
-4. Di bagian **Environment Variables** platform tersebut, tambahkan `OPENROUTER_API_KEY` (dan opsional `SITE_URL`, `DEFAULT_MODEL`, dll — lihat `.env.example`) — isi lewat dashboard, bukan lewat file `.env`.
-5. Deploy. Platform akan memberi URL publik (misalnya `https://roum-ai.onrender.com`).
-
-Render punya tier gratis asli untuk Node.js (tanpa kartu kredit) — instance-nya "tidur" kalau 15 menit tidak dipakai lalu bangun lagi ~30–60 detik pas diakses lagi. Cukup untuk pemakaian pribadi.
-
-### Opsi B — Vercel (pakai folder `api/`)
-
-1. Push project ini ke GitHub.
-2. Di [vercel.com](https://vercel.com), **Add New → Project**, import repo tersebut. Framework Preset pilih **Other** (biar folder `public/` otomatis jadi root situs statis, dan folder `api/` otomatis jadi serverless functions — tidak perlu konfigurasi build apa pun).
-3. Di **Environment Variables**, tambahkan `OPENROUTER_API_KEY` (isi dengan key OpenRouter kamu) dan, kalau mau pakai jalur Gemini gratis independen, `GEMINI_API_KEY` juga — **ini wajib diisi lewat dashboard Vercel**, karena Vercel tidak pernah membaca file `.env` di production sama sekali.
-4. Deploy. Vercel kasih URL publik (`https://nama-project.vercel.app`).
-
-**Batasan khusus versi Vercel** (tidak berlaku di Opsi A):
-- **Video dimatikan total.** Vercel Functions punya batas keras request 4.5MB — tidak cukup untuk file video sama sekali, jadi tombol upload video otomatis dinonaktifkan di deployment ini.
-- **Gambar dibatasi 2MB** (lebih kecil dari 10MB di Opsi A), supaya sisa ruang di bawah batas 4.5MB itu cukup untuk teks percakapan.
-- Function dibatasi durasi 60 detik (`vercel.json`) — jawaban dengan reasoning "High" yang sangat panjang berisiko terpotong di paket gratis Vercel.
-- Tidak ada rate limiting bawaan (beda dari Opsi A yang pakai `express-rate-limit`) — Vercel Functions tidak punya proses yang hidup terus untuk menyimpan hitungannya.
-
-Kalau butuh upload video, pakai Opsi A (Render dkk), bukan Vercel.
+- **"SDK location not found" / lisensi SDK** — seharusnya tidak terjadi karena `android-actions/setup-android@v3` sudah otomatis menyetujui semua lisensi SDK yang diperlukan. Kalau tetap muncul, cek apakah step "Set up Android SDK" ada di log dan sukses.
+- **Versi dependency tidak ketemu ("Could not find ...")** — biasanya karena versi library tertentu sudah ditarik dari Maven Central. Naikkan versi di `app/build.gradle` untuk dependency yang disebut di error.
+- **Build sukses tapi tidak ada APK** — cek step "Check APK was produced"; kalau ini yang gagal, kemungkinan `assembleDebug`/`assembleRelease` sebenarnya error di step sebelumnya tapi tidak terdeteksi — lihat log lengkap step Gradle.
+- **Release APK unsigned** — berarti salah satu dari 4 secret (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) belum diisi atau namanya typo. Cek ulang di Settings → Secrets.
+- **`onKeyEvent` / gesture tidak jalan di HP** — ini bukan gagal build, tapi runtime: pastikan izin **"Display over other apps"** dan **Accessibility Service Gomouse Pro** sama-sama aktif (Settings di dalam aplikasi menampilkan status keduanya secara real-time).
+- **Ingin build ulang dari nol** — hapus cache dengan menambahkan step `./gradlew clean` sebelum `assembleDebug` di `build.yml`, atau re-run job dari Actions dengan opsi "Re-run all jobs".
 
 ---
 
-## Batasan yang perlu diketahui
+## Fitur
 
-- **Nama model disederhanakan menjadi "Roum AI Pro"** di UI — di balik layar tetap otomatis mencoba beberapa model gratis (dan Gemini langsung kalau `GEMINI_API_KEY` diisi) secara berurutan. Daftar lengkapnya ada di `server.js`/`lib/vercel-shared.js` kalau suatu saat perlu diedit/ditambah.
-- **Blok kode HTML punya tombol Preview** (selain Copy & Download) — klik untuk lihat hasil render-nya langsung di dalam app (pakai `<iframe sandbox>`, aman dari script yang mencoba mengakses halaman utama).
+- Visual key mapping editor fullscreen: tambah, drag, resize, undo/redo, grid/snap, lock, hide/show, reset layout.
+- Tipe kontrol: Tap, Hold, Double Tap, Swipe, Virtual Joystick (WASD atau mouse-look), D-Pad (4/8 arah).
+- Binding fisik: keyboard, tombol gamepad/controller, tombol mouse — semua ditangkap dengan cara "tekan tombolnya langsung" di editor.
+- Profile per game: sensitivity X/Y, opacity overlay, grid snap, import/export JSON, disimpan lokal otomatis.
+- Dark UI, aksen biru, Material Design 3, logo & ikon orisinal (vector, tanpa aset GGMouse).
+- Device detection real-time (keyboard/mouse/controller yang terhubung).
 
-- **Riwayat chat** tersimpan di `localStorage` browser masing-masing perangkat — tidak sinkron antar perangkat/browser, dan bisa hilang jika cache browser dibersihkan.
-- Lampiran gambar/video ikut tersimpan di localStorage sebagai base64. Browser membatasi localStorage (biasanya beberapa MB), jadi di percakapan yang sangat panjang dengan banyak lampiran besar, lampiran lama bisa otomatis "dilepas" dari riwayat tersimpan (teks tetap aman) — akan muncul notifikasi kalau ini terjadi.
-- Video hanya bisa dianalisis oleh model yang mendukungnya (GLM-5.3 Flash, Gemini 3 Pro) — dukungan video di OpenRouter memang bergantung pada model/provider, bukan fitur universal.
-- Batas ukuran file default: gambar 10MB, video 30MB (bisa diubah di `server.js` & `public/app.js`, cari `MAX_IMAGE_BYTES`/`MAX_VIDEO_BYTES`).
+## Keterbatasan Android (dibaca sebelum lapor "bug")
 
-## Struktur project
+Sesuai instruksi awal, tidak ada exploit/bypass/root di project ini — jadi ada beberapa batas resmi dari Android sendiri yang perlu diketahui:
 
-```
-roum-ai/
-├── public/
-│   ├── index.html      # struktur halaman
-│   ├── style.css        # desain dark/glassmorphism, mobile-first
-│   ├── app.js            # semua logic frontend (chat, streaming, settings, dll)
-│   └── assets/
-│       └── favicon.svg   # logo RM
-├── server.js             # backend Express untuk Render/Railway/VPS/lokal (Opsi A)
-├── api/                  # backend serverless untuk Vercel (Opsi B)
-│   ├── chat.js
-│   ├── models.js
-│   └── health.js
-├── lib/
-│   └── vercel-shared.js  # katalog model & validasi khusus untuk folder api/
-├── vercel.json           # durasi maksimum function chat di Vercel
-├── package.json
-├── .env.example
-└── .gitignore
-```
+- **Mouse global (klik di mana saja, tanpa kursor di atas tombol)** memerlukan mode **"Mouse Mode"** (toggle bulat kecil di pojok overlay) yang mengaktifkan Pointer Capture resmi Android. Di luar mode ini, klik mouse tetap berfungsi persis seperti sentuhan biasa — hanya aktif kalau kursor memang berada di atas kontrol yang bersangkutan.
+- **AccessibilityService tidak menerima event mouse generik** dari Android (hanya keyboard + tombol gamepad lewat `onKeyEvent`) — ini keterbatasan platform, bukan bug, makanya penanganan mouse ditaruh di level window overlay (`OverlayService`/`OverlayRootView`), bukan di accessibility service.
+- **Multi-touch bersamaan** (misalnya menahan WASD sambil menekan tombol Fire) memakai mekanisme resmi `StrokeDescription.continueStroke`. Ini didukung resmi oleh Android, tapi perilaku detailnya bisa sedikit berbeda antar versi Android/skin OEM.
+- **OEM battery optimization** (Xiaomi/MIUI, Oppo/ColorOS, Vivo, dll) sering membunuh accessibility service atau overlay di background. Satu-satunya solusi resmi adalah meminta user mengizinkan lewat Settings (tombol "Ignore battery optimization" sudah disediakan di Settings aplikasi) — tidak ada cara lain yang tidak root untuk memaksanya.
+- Aplikasi ini **tidak pernah** mengklaim bisa menembus proteksi anti-cheat game atau memodifikasi memori/file game — ia murni mensimulasikan sentuhan layar di posisi yang kamu tentukan sendiri di editor.

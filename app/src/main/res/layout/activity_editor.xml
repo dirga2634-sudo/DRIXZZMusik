@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/res-auto"
+    android:id="@+id/editor_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <FrameLayout
+        android:id="@+id/canvas_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/editor_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:layout_gravity="top"
+        android:background="#CC0D1117"
+        app:navigationIcon="@drawable/ic_close"
+        app:titleTextColor="@color/text_primary" />
+
+    <LinearLayout
+        android:id="@+id/editor_bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#CC0D1117"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <ImageButton
+            android:id="@+id/btn_undo"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_undo"
+            android:src="@drawable/ic_undo" />
+
+        <ImageButton
+            android:id="@+id/btn_redo"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_redo"
+            android:src="@drawable/ic_redo" />
+
+        <ImageButton
+            android:id="@+id/btn_reset_layout"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_reset"
+            android:src="@drawable/ic_delete" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btn_lock"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_lock"
+            android:src="@drawable/ic_lock_open" />
+
+        <ImageButton
+            android:id="@+id/btn_visibility"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_visibility"
+            android:src="@drawable/ic_visibility" />
+
+        <ImageButton
+            android:id="@+id/btn_duplicate"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_duplicate"
+            android:src="@drawable/ic_content_copy" />
+
+        <ImageButton
+            android:id="@+id/btn_delete"
+            style="@style/Widget.GomousePro.EditorToolButton"
+            android:contentDescription="@string/action_delete"
+            android:src="@drawable/ic_delete" />
+    </LinearLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:layout_marginBottom="72dp"
+        app:backgroundTint="@color/accent_blue"
+        app:srcCompat="@drawable/ic_add"
+        app:tint="@color/white" />
+
+</FrameLayout>

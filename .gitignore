@@ -1,19 +1,39 @@
-# Environment & secrets
-.env
-.env.local
-.env.*.local
+# Gradle
+.gradle/
+build/
+app/build/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
 
-# Dependencies
-node_modules/
+# Local configuration
+local.properties
 
-# Logs
-npm-debug.log*
-*.log
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores — never commit real signing material
+*.jks
+*.keystore
+keystore.properties
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
-.idea/
+# Log files
+*.log
+
+# Generated
+/app/release/
+/app/debug/
+bin/
+gen/
+out/

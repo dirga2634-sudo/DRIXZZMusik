@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/settings_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/surface"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/text_primary"
+        app:navigationIcon="@drawable/ic_back" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                style="@style/TextAppearance.GomousePro.SectionHeader"
+                android:text="@string/settings_section_profile_tuning" />
+
+            <TextView
+                android:id="@+id/text_settings_active_profile"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/label_sensitivity_x"
+                android:textColor="@color/text_primary" />
+            <SeekBar
+                android:id="@+id/seek_sensitivity_x"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="280" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/label_sensitivity_y"
+                android:textColor="@color/text_primary" />
+            <SeekBar
+                android:id="@+id/seek_sensitivity_y"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="280" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/label_overlay_opacity"
+                android:textColor="@color/text_primary" />
+            <SeekBar
+                android:id="@+id/seek_opacity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="80" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="14dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/label_grid_snap"
+                    android:textColor="@color/text_primary" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switch_grid_snap"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/TextAppearance.GomousePro.SectionHeader"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_section_permissions" />
+
+            <include layout="@layout/item_permission_row" android:id="@+id/row_overlay" />
+            <include layout="@layout/item_permission_row" android:id="@+id/row_accessibility" />
+            <include layout="@layout/item_permission_row" android:id="@+id/row_battery" />
+
+            <TextView
+                style="@style/TextAppearance.GomousePro.SectionHeader"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_section_profiles" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_import_profile"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/action_import_profile"
+                app:icon="@drawable/ic_upload" />
+
+            <TextView
+                style="@style/TextAppearance.GomousePro.SectionHeader"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_section_about" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/about_body"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:lineSpacingExtra="3dp" />
+
+            <TextView
+                android:id="@+id/text_version"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gomouse Pro</string>
+    <string name="settings_title">Settings</string>
+    <string name="home_tagline">Keyboard, mouse &amp; controller mapping for any game</string>
+
+    <!-- Home -->
+    <string name="overlay_status_off">Overlay is off</string>
+    <string name="overlay_status_on">Overlay is running</string>
+    <string name="no_active_profile">No active profile selected</string>
+    <string name="active_profile_format">Active: %1$s</string>
+    <string name="action_create_profile">Create Profile</string>
+    <string name="action_open_editor">Open Editor</string>
+    <string name="section_recent_profiles">Recent Profiles</string>
+    <string name="no_profiles_yet">No profiles yet — tap \"Create Profile\" to build your first control layout.</string>
+    <string name="section_connected_devices">Connected Devices</string>
+    <string name="action_create">Create</string>
+    <string name="hint_profile_name">Profile name</string>
+    <string name="default_profile_name">New Profile</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="error_no_active_profile">Pick or create a profile first</string>
+    <string name="action_set_active">Set Active</string>
+    <string name="action_duplicate">Duplicate</string>
+    <string name="action_export">Export</string>
+    <string name="action_delete">Delete</string>
+    <string name="error_export_failed">Couldn\'t export this profile</string>
+    <string name="confirm_delete_profile_format">Delete \"%1$s\"? This can\'t be undone.</string>
+    <string name="device_type_gamepad">Controller</string>
+    <string name="device_type_mouse">Mouse</string>
+    <string name="device_type_keyboard">Keyboard</string>
+    <string name="device_type_other">Input Device</string>
+    <string name="rationale_overlay_permission">Gomouse Pro needs the \"display over other apps\" permission to draw your mapped controls on top of a game.</string>
+    <string name="action_continue">Continue</string>
+    <string name="rationale_accessibility_permission">Turn on the Gomouse Pro accessibility service so it can translate your keyboard, mouse, and controller input into touch.</string>
+    <string name="action_more_options">More options</string>
+
+    <!-- Editor -->
+    <string name="editor_add_control">Add control</string>
+    <string name="editor_confirm_delete">Delete this control?</string>
+    <string name="editor_confirm_reset">Remove every control from this profile?</string>
+    <string name="action_reset">Reset</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_redo">Redo</string>
+    <string name="action_lock">Lock or unlock</string>
+    <string name="action_visibility">Show or hide</string>
+    <string name="error_profile_not_found">That profile couldn\'t be found</string>
+
+    <!-- Settings -->
+    <string name="settings_section_profile_tuning">Active Profile Tuning</string>
+    <string name="label_sensitivity_x">Sensitivity X</string>
+    <string name="label_sensitivity_y">Sensitivity Y</string>
+    <string name="label_overlay_opacity">Overlay Opacity</string>
+    <string name="label_grid_snap">Snap to grid in editor</string>
+    <string name="settings_section_permissions">Permissions</string>
+    <string name="settings_section_profiles">Profiles</string>
+    <string name="action_import_profile">Import Profile (.json)</string>
+    <string name="settings_section_about">About</string>
+    <string name="about_body">Gomouse Pro maps your keyboard, mouse, and controller to touch using only official Android APIs — the Accessibility gesture-dispatch API and the standard overlay/pointer-capture APIs. No root, no exploits, no hidden APIs.</string>
+    <string name="version_format">Version %1$s (build %2$d)</string>
+    <string name="permission_overlay_title">Display over other apps</string>
+    <string name="permission_accessibility_title">Accessibility service</string>
+    <string name="permission_battery_title">Ignore battery optimization</string>
+    <string name="permission_status_granted">Granted</string>
+    <string name="permission_status_needed">Needed</string>
+    <string name="action_open">Open</string>
+    <string name="error_import_failed">Couldn\'t import that file</string>
+    <string name="import_success_format">Imported \"%1$s\"</string>
+
+    <!-- Overlay service -->
+    <string name="error_overlay_permission_required">Grant the overlay permission first</string>
+    <string name="error_accessibility_required">Turn on the Gomouse Pro accessibility service first</string>
+    <string name="notification_overlay_title">Gomouse Pro overlay active</string>
+    <string name="notification_overlay_text">Your mapped controls are on screen</string>
+    <string name="notification_action_toggle_mouse">Mouse Mode</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_channel_overlay_name">Overlay status</string>
+    <string name="notification_channel_overlay_description">Shows when the Gomouse Pro control overlay is active</string>
+    <string name="accessibility_service_description">Lets Gomouse Pro translate your keyboard, mouse, and controller input into on-screen touch for the mapped app. It only dispatches touch gestures at the positions you place in the editor — it never reads screen content or other apps\' data.</string>
+
+    <plurals name="controls_count">
+        <item quantity="one">%d control</item>
+        <item quantity="other">%d controls</item>
+    </plurals>
+</resources>

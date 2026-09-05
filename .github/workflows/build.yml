@@ -1,0 +1,104 @@
+name: Build Gomouse Pro
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build variant to assemble"
+        required: true
+        default: "assembleDebug"
+        type: choice
+        options:
+          - assembleDebug
+          - assembleRelease
+
+# Cancel superseded runs on the same branch so pushes don't queue up.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Assemble APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.5.0
+
+      # gradle-wrapper.jar is a binary file, so it is intentionally not
+      # committed to this repository (see README > "Kenapa gradle-wrapper.jar
+      # tidak ada di repo"). This step regenerates the full wrapper —
+      # gradlew, gradlew.bat, gradle-wrapper.jar and .properties — using the
+      # Gradle version the setup-gradle step just provisioned, so
+      # ./gradlew always exists and matches the pinned version before we
+      # ever call it below.
+      - name: Regenerate Gradle wrapper
+        run: gradle wrapper --gradle-version 9.5.0 --distribution-type bin
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Decide build task
+        id: task
+        run: |
+          TASK="${{ github.event.inputs.build_type }}"
+          if [ -z "$TASK" ]; then
+            TASK="assembleDebug"
+          fi
+          echo "task=$TASK" >> "$GITHUB_OUTPUT"
+
+      - name: Build with Gradle
+        run: |
+          ./gradlew ${{ steps.task.outputs.task }} \
+            -PversionCode=${{ github.run_number }} \
+            -PversionName=1.0.${{ github.run_number }} \
+            --stacktrace --info
+        continue-on-error: true
+        id: gradle_build
+
+      # Surfaces the actual Gradle failure clearly in the Actions log
+      # instead of just a red X, per "tampilkan error Gradle dengan jelas".
+      - name: Show failure details if build failed
+        if: steps.gradle_build.outcome == 'failure'
+        run: |
+          echo "::error::Gradle build failed — see the 'Build with Gradle' step log above for the full stack trace."
+          echo "--- Last 200 lines of any Gradle daemon log ---"
+          find ~/.gradle -maxdepth 4 -iname "*.log" -newer settings.gradle -exec tail -n 200 {} \; 2>/dev/null || true
+          exit 1
+
+      - name: Check APK was produced
+        run: |
+          APK_DIR="app/build/outputs/apk"
+          if find "$APK_DIR" -name "*.apk" | grep -q .; then
+            echo "APK(s) found:"
+            find "$APK_DIR" -name "*.apk"
+          else
+            echo "::error::No APK was produced under $APK_DIR"
+            exit 1
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gomouse-pro-${{ steps.task.outputs.task }}-${{ github.run_number }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
