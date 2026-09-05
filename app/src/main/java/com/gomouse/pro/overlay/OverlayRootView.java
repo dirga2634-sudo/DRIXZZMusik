@@ -40,7 +40,7 @@ import java.util.List;
  *    click still works exactly like a touch wherever the cursor is over a
  *    control, with no special handling needed.
  */
-public class OverlayRootView extends FrameLayout implements View.OnCapturedPointerListener {
+public class OverlayRootView extends FrameLayout {
 
     public interface WindowController {
         void setFocusableForMouseCapture(boolean focusable);
@@ -131,10 +131,12 @@ public class OverlayRootView extends FrameLayout implements View.OnCapturedPoint
             addView(bv, lp);
             buttonViews.add(bv);
         }
+        // requestLayout() causes the framework to re-run its layout pass,
+        // which is also what re-invokes setOnComputeInternalInsetsListener's
+        // callback — so the touchable region picks up each button's real
+        // bounds automatically once they're placed, with no need to
+        // manually trigger insets computation ourselves.
         requestLayout();
-        // Recompute the touchable region once children have real bounds.
-        post(() -> getViewTreeObserver().dispatchOnComputeInternalInsets(
-                new ViewTreeObserver.InternalInsetsInfo()));
     }
 
     public void setMouseActive(boolean active) {
@@ -155,16 +157,25 @@ public class OverlayRootView extends FrameLayout implements View.OnCapturedPoint
         } else {
             releasePointerCapture();
         }
-        getViewTreeObserver().dispatchOnComputeInternalInsets(new ViewTreeObserver.InternalInsetsInfo());
+        // Re-triggers setOnComputeInternalInsetsListener's callback so the
+        // touchable region switches between "just the controls" and "the
+        // whole window" immediately when mouse mode toggles.
+        requestLayout();
     }
 
     public boolean isMouseActive() {
         return mouseActive;
     }
 
-    /** Fires with RELATIVE motion once this view holds official Pointer Capture. */
+    /**
+     * Fires with RELATIVE motion once this view holds official Pointer Capture.
+     * This overrides {@link View#onCapturedPointerEvent(MotionEvent)} directly
+     * (OverlayRootView IS the captured view, via requestPointerCapture() in
+     * {@link #setMouseActive}) — no separate OnCapturedPointerListener/
+     * setOnCapturedPointerListener wiring is needed for that case.
+     */
     @Override
-    public boolean onCapturedPointerEvent(View view, MotionEvent event) {
+    public boolean onCapturedPointerEvent(MotionEvent event) {
         GomouseAccessibilityService service = GomouseAccessibilityService.getInstance();
         Profile profile = service != null ? service.getActiveProfile() : null;
         if (service == null || profile == null) {
