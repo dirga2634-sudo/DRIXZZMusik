@@ -3,7 +3,7 @@
 // applied in app/build.gradle. This keeps a single source of truth
 // for the Android Gradle Plugin version used across the project.
 plugins {
-    id 'com.android.application' version '9.3.0' apply false
+    id 'com.android.application' version '8.7.0' apply false
 }
 
 tasks.register('clean', Delete) {

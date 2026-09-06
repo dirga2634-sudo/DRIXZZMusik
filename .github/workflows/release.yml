@@ -34,12 +34,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 9.5.0
+          gradle-version: 8.9
           # See build.yml for why this is off for now.
           cache-disabled: true
 
       - name: Regenerate Gradle wrapper
-        run: gradle wrapper --gradle-version 9.5.0 --distribution-type bin
+        run: gradle wrapper --gradle-version 8.9 --distribution-type bin
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew

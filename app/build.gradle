@@ -29,7 +29,6 @@ def ciVersionName = project.hasProperty('versionName') ? project.property('versi
 android {
     namespace 'com.gomouse.pro'
     compileSdk 35
-    buildToolsVersion "36.0.0"
 
     defaultConfig {
         applicationId "com.gomouse.pro"
@@ -89,7 +88,7 @@ android {
         buildConfig true
     }
 
-    packaging {
+    packagingOptions {
         resources {
             excludes += ['META-INF/LICENSE*', 'META-INF/NOTICE*']
         }
