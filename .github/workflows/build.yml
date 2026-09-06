@@ -42,6 +42,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.5.0
+          # Caching disabled for now: a stale/incomplete Gradle Home cache
+          # entry from a previously FAILED run can leave AAPT2's AAR-resource
+          # transforms in an inconsistent state and cause confusing resource-
+          # linking errors on the next run that have nothing to do with the
+          # actual source. Re-enable once the build has been green for a
+          # while — see README > "Kenapa cache Gradle dimatikan sementara".
+          cache-disabled: true
 
       # gradle-wrapper.jar is a binary file, so it is intentionally not
       # committed to this repository (see README > "Kenapa gradle-wrapper.jar

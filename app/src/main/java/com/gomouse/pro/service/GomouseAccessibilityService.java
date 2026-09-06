@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * receives KeyEvents (keyboard keys + gamepad buttons) system-wide, but
  * Android does not deliver generic mouse MotionEvents to an
  * AccessibilityService — only to whichever window currently has them. Mouse
- * handling therefore lives in OverlayService/OverlayRootView instead, which
+ * handling therefore lives in OverlayService instead, which
  * calls back into the public methods here to actually trigger a gesture.
  */
 public class GomouseAccessibilityService extends AccessibilityService {
