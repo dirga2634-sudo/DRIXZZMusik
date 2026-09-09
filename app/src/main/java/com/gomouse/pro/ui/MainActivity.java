@@ -26,6 +26,7 @@ import com.gomouse.pro.editor.EditorActivity;
 import com.gomouse.pro.model.Profile;
 import com.gomouse.pro.service.OverlayService;
 import com.gomouse.pro.storage.ProfileRepository;
+import com.gomouse.pro.util.CrashReporter;
 import com.gomouse.pro.util.PermissionUtils;
 
 import java.util.ArrayList;
@@ -67,6 +68,8 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        showLastCrashIfAny();
 
         repository = ProfileRepository.getInstance(this);
         inputManager = (InputManager) getSystemService(INPUT_SERVICE);
@@ -132,6 +135,46 @@ public class MainActivity extends AppCompatActivity implements ProfileAdapter.Li
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    // --- Crash reporting (no ADB available for testing, so the app surfaces its own crash log) ---
+
+    private void showLastCrashIfAny() {
+        String trace = CrashReporter.getLastCrash(this);
+        if (trace == null) {
+            return;
+        }
+        CrashReporter.clearLastCrash(this);
+
+        TextView messageView = new TextView(this);
+        messageView.setText(trace);
+        messageView.setTextIsSelectable(true);
+        messageView.setTextSize(12f);
+        int pad = Math.round(16 * getResources().getDisplayMetrics().density);
+        messageView.setPadding(pad, pad, pad, pad);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.addView(messageView);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.crash_dialog_title)
+                .setView(scroll)
+                .setPositiveButton(R.string.action_share, (d, w) -> {
+                    Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                    shareIntent.setType("text/plain");
+                    shareIntent.putExtra(Intent.EXTRA_TEXT, trace);
+                    startActivity(Intent.createChooser(shareIntent, getString(R.string.crash_dialog_title)));
+                })
+                .setNeutralButton(R.string.action_copy, (d, w) -> {
+                    android.content.ClipboardManager clipboard =
+                            (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (clipboard != null) {
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Gomouse Pro crash", trace));
+                        Toast.makeText(this, R.string.crash_copied, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(R.string.action_dismiss, null)
+                .setCancelable(true)
+                .show();
     }
 
     // --- Profiles ---------------------------------------------------------

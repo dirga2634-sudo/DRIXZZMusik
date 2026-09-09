@@ -5,6 +5,8 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.os.Build;
 
+import com.gomouse.pro.util.CrashReporter;
+
 public class GomouseApplication extends Application {
 
     public static final String OVERLAY_CHANNEL_ID = "gomouse_overlay_channel";
@@ -12,6 +14,7 @@ public class GomouseApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        CrashReporter.install(getApplicationContext());
         createNotificationChannel();
     }
 

@@ -77,6 +77,13 @@
     <string name="notification_channel_overlay_description">Shows when the Gomouse Pro control overlay is active</string>
     <string name="accessibility_service_description">Lets Gomouse Pro translate your keyboard, mouse, and controller input into on-screen touch for the mapped app. It only dispatches touch gestures at the positions you place in the editor — it never reads screen content or other apps\' data.</string>
 
+    <!-- Crash reporter (no ADB for testing, so the app shows its own last crash) -->
+    <string name="crash_dialog_title">Gomouse Pro crashed last time</string>
+    <string name="action_share">Share</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="crash_copied">Crash log copied</string>
+
     <plurals name="controls_count">
         <item quantity="one">%d control</item>
         <item quantity="other">%d controls</item>
