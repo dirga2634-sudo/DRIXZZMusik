@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Brand Kit — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Brand Kit');
+content.innerHTML = `<div class="card" style="max-width:560px;"><p class="text-secondary text-sm mb-16">Saved once here, applied automatically to every AI edit and export.</p><div id="bk-form"></div></div>`;
+let kit = null;
+Api.get('/api/brand-kit').then(({ brandKit }) => {
+  kit = brandKit;
+  document.getElementById('bk-form').innerHTML = `
+    <div class="field-group"><label class="field-label">Brand name</label><input class="text-input" id="bk-name" value="${escapeHtml(kit.name || '')}" /></div>
+    <div class="field-group"><label class="field-label">Colors</label><div class="flex gap-8">${(kit.colors||[]).map((c,i) => `<input type="color" value="${c}" data-idx="${i}" class="bk-color" style="width:44px;height:38px;border-radius:8px;border:none;" />`).join('')}</div></div>
+    <div class="field-group"><label class="field-label">Heading font</label><select class="select-input" id="bk-font-heading"><option${kit.fontHeading==='Space Grotesk'?' selected':''}>Space Grotesk</option><option${kit.fontHeading==='Inter'?' selected':''}>Inter</option><option${kit.fontHeading==='Poppins'?' selected':''}>Poppins</option></select></div>
+    <div class="field-group"><label class="field-label">Default caption style</label><select class="select-input" id="bk-caption"><option value="classic">Classic</option><option value="bold">Bold</option><option value="karaoke">Karaoke</option><option value="minimal">Minimal</option></select></div>
+    <div class="field-group"><label class="field-label">Watermark</label><div class="dropzone" style="padding:24px;"><p class="text-sm text-muted">Drop logo image here (PNG, transparent background recommended)</p></div></div>
+    <button class="btn-primary" id="btn-save-brand">Save Brand Kit</button>
+  `;
+  document.getElementById('bk-caption').value = kit.captionStyle || 'bold';
+  document.getElementById('btn-save-brand').addEventListener('click', async () => {
+    const colors = [...document.querySelectorAll('.bk-color')].map(i => i.value);
+    try {
+      await Api.patch('/api/brand-kit', { name: document.getElementById('bk-name').value, colors, fontHeading: document.getElementById('bk-font-heading').value, captionStyle: document.getElementById('bk-caption').value });
+      showToast('Brand Kit saved.', 'success');
+    } catch (err) { showToast(err.message, 'error'); }
+  });
+}).catch(err => showToast(err.message, 'error'));
+</script>
+</body></html>

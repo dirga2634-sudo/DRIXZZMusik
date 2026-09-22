@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Help — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Help');
+content.innerHTML = `<div style="max-width:640px;display:flex;flex-direction:column;gap:12px;">
+  ${faq('How do I create my first clip?', 'Go to Create → upload a video or paste a link → Vidzly analyzes it and generates clip candidates automatically.')}
+  ${faq('Why can\\'t I import from YouTube/TikTok directly?', 'Real platform import needs official API credentials from each platform, configured by whoever runs this server. Ask your admin, or download the video from the platform\\'s own app and upload it manually.')}
+  ${faq('What happens if no AI key is configured?', 'Vidzly runs in Demo Mode — the full interface works with sample data, and video cutting/reframing (FFmpeg) still works for real, but AI-written titles/captions fall back to generic examples.')}
+  ${faq('Where are my exported files?', 'Locally on the server that runs Vidzly, under backend/exports/ — each export gives you a direct download link.')}
+</div>`;
+function faq(q, a) { return `<div class="card"><div class="font-semibold text-sm mb-8">${q}</div><div class="text-secondary text-sm">${a}</div></div>`; }
+</script>
+</body></html>

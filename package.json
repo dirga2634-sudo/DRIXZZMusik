@@ -1,0 +1,7 @@
+{
+  "name": "vidzly-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vidzly AI Creator Studio — deployment Vercel (frontend statis + AI functions). Untuk backend penuh (upload/FFmpeg/database), lihat folder backend/.",
+  "engines": { "node": ">=18.0.0" }
+}

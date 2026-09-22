@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="360" y2="640" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#EC4899"/>
+  </linearGradient></defs>
+  <rect width="360" height="640" fill="#0a0a0f"/>
+  <rect width="360" height="640" fill="url(#g)" opacity="0.85"/>
+  <text x="180" y="310" font-size="56" text-anchor="middle" dominant-baseline="middle">😂</text>
+  <text x="180" y="375" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#fff" text-anchor="middle" opacity="0.9">Momen Kocak</text>
+  </svg>

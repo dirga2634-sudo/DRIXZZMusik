@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projects — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Projects');
+let viewMode = 'grid';
+let allProjects = [];
+
+content.innerHTML = `
+  <div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap;">
+    <input type="text" id="search-input" class="text-input" placeholder="Search projects…" style="max-width:280px;" />
+    <select id="sort-select" class="select-input" style="width:auto;"><option value="recent">Sort: Most recent</option><option value="name">Sort: Name</option><option value="duration">Sort: Duration</option></select>
+    <div class="topbar__spacer"></div>
+    <button class="icon-btn" id="btn-grid-view" style="background:var(--bg-surface-2);">▦</button>
+    <button class="icon-btn" id="btn-list-view">☰</button>
+  </div>
+  <div id="projects-container" class="grid grid--projects">${Array(6).fill('<div class="skeleton skeleton-card"></div>').join('')}</div>
+`;
+
+document.getElementById('btn-grid-view').addEventListener('click', () => { viewMode = 'grid'; render(); });
+document.getElementById('btn-list-view').addEventListener('click', () => { viewMode = 'list'; render(); });
+document.getElementById('search-input').addEventListener('input', render);
+document.getElementById('sort-select').addEventListener('change', render);
+
+function render() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const sort = document.getElementById('sort-select').value;
+  let list = allProjects.filter(p => p.name.toLowerCase().includes(q));
+  if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sort === 'duration') list.sort((a, b) => (b.durationSec || 0) - (a.durationSec || 0));
+  else list.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+
+  const container = document.getElementById('projects-container');
+  container.className = viewMode === 'grid' ? 'grid grid--projects' : 'flex flex-col gap-12';
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>Your workspace is empty</h3><p>Create your first project to get started.</p><a href="/create.html" class="btn-primary mt-8">Create your first project</a></div>`;
+    return;
+  }
+  container.innerHTML = list.map(p => viewMode === 'grid' ? gridCard(p) : listRow(p)).join('');
+  wireActions();
+}
+
+function gridCard(p) {
+  return `<div class="project-card" data-id="${p.id}">
+    <div class="project-card__thumb">${p.thumbnail ? `<img src="${p.thumbnail}"/>` : ''}<span class="project-card__duration">${formatDuration(p.durationSec)}</span></div>
+    <div class="flex items-center justify-between"><span class="project-card__title">${escapeHtml(p.name)}</span><div class="dropdown"><button class="icon-btn btn-menu">⋮</button></div></div>
+    <div class="project-card__meta"><span class="chip chip--${p.status === 'ready' ? 'success' : p.status === 'failed' ? 'warning' : 'muted'}">${p.status}</span><span>${formatDate(p.createdAt)}</span></div>
+  </div>`;
+}
+function listRow(p) {
+  return `<div class="card flex items-center gap-16" data-id="${p.id}" style="cursor:pointer;">
+    <div style="width:70px;height:40px;border-radius:8px;overflow:hidden;background:var(--bg-surface-2);flex-shrink:0;">${p.thumbnail ? `<img src="${p.thumbnail}" style="width:100%;height:100%;object-fit:cover;"/>` : ''}</div>
+    <div style="flex:1;"><div class="font-semibold text-sm">${escapeHtml(p.name)}</div><div class="text-muted text-sm">${formatDuration(p.durationSec)} · ${formatDate(p.createdAt)}</div></div>
+    <span class="chip chip--${p.status === 'ready' ? 'success' : 'muted'}">${p.status}</span>
+    <button class="icon-btn btn-menu">⋮</button>
+  </div>`;
+}
+
+function wireActions() {
+  document.querySelectorAll('.project-card, [data-id]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-menu') || e.target.closest('.dropdown__menu')) return;
+      const project = allProjects.find(p => p.id === el.dataset.id);
+      if (project?.status === 'ready') location.href = `/clips.html?project=${el.dataset.id}`;
+      else if (project?.status === 'processing') location.href = `/processing.html?project=${el.dataset.id}`;
+      else showToast('Project belum diproses.', 'info');
+    });
+  });
+  document.querySelectorAll('.btn-menu').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.dropdown__menu').forEach(m => m.remove());
+    const menu = document.createElement('div');
+    menu.className = 'dropdown__menu';
+    menu.innerHTML = `<button data-act="rename">✏️ Rename</button><button data-act="duplicate">⧉ Duplicate</button><button class="danger" data-act="delete">🗑️ Delete</button>`;
+    btn.parentElement.appendChild(menu);
+    const projectId = btn.closest('[data-id]').dataset.id;
+    menu.addEventListener('click', async (ev) => {
+      const act = ev.target.dataset.act; if (!act) return;
+      if (act === 'delete') {
+        const ok = await confirmDialog({ title: 'Delete this project?', message: 'This will permanently delete the project and its clips.' });
+        if (ok) { await Api.delete(`/api/projects/${projectId}`); showToast('Project deleted.', 'success'); load(); }
+      } else if (act === 'rename') {
+        const newName = prompt('New project name:');
+        if (newName) { await Api.patch(`/api/projects/${projectId}`, { name: newName }); load(); }
+      } else { showToast('Duplicate coming to your workspace shortly.', 'info'); }
+    }, { once: true });
+  }));
+  document.addEventListener('click', () => document.querySelectorAll('.dropdown__menu').forEach(m => m.remove()), { once: true });
+}
+
+async function load() {
+  try { const { projects } = await Api.get('/api/projects'); allProjects = projects; render(); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+load();
+</script>
+</body>
+</html>

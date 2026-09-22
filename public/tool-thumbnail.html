@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Thumbnail Maker — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Thumbnail Maker');
+content.innerHTML = `<div class="grid" style="grid-template-columns:1fr 320px;align-items:start;gap:20px;">
+  <div class="card" style="aspect-ratio:1280/720;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;" id="thumb-canvas">
+    <p class="text-muted text-sm">Select a project frame to begin →</p>
+  </div>
+  <div class="card">
+    <div class="field-group"><label class="field-label">Source project</label><select class="select-input" id="thumb-project"></select></div>
+    <div class="field-group"><label class="field-label">Headline text</label><input class="text-input" id="thumb-text" placeholder="e.g. YOU WON'T BELIEVE THIS" /></div>
+    <div class="field-group"><label class="field-label">Text color</label><input type="color" value="#ffffff" id="thumb-color" style="width:100%;height:38px;border-radius:8px;border:none;" /></div>
+    <div class="field-group"><label class="field-label">Style</label><select class="select-input" id="thumb-style"><option>Bold outline</option><option>Gradient box</option><option>Minimal</option></select></div>
+    <button class="btn-primary btn-block" id="btn-apply">Apply text</button>
+    <p class="text-muted text-sm mt-16">Output size: 1280×720</p>
+  </div>
+</div>`;
+
+Api.get('/api/projects').then(({ projects }) => {
+  const ready = projects.filter(p => p.thumbnail);
+  document.getElementById('thumb-project').innerHTML = ready.length ? ready.map(p => `<option value="${p.thumbnail}">${escapeHtml(p.name)}</option>`).join('') : '<option value="">No frames available yet</option>';
+  if (ready.length) renderCanvas(ready[0].thumbnail);
+  document.getElementById('thumb-project').addEventListener('change', (e) => renderCanvas(e.target.value));
+});
+function renderCanvas(imgSrc) {
+  document.getElementById('thumb-canvas').innerHTML = imgSrc ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;" id="thumb-bg" />` : '<p class="text-muted text-sm">No frame selected</p>';
+}
+document.getElementById('btn-apply').addEventListener('click', () => {
+  const canvas = document.getElementById('thumb-canvas');
+  const text = document.getElementById('thumb-text').value || 'YOUR TEXT HERE';
+  const color = document.getElementById('thumb-color').value;
+  let overlay = canvas.querySelector('.thumb-overlay-text');
+  if (!overlay) { overlay = document.createElement('div'); overlay.className = 'thumb-overlay-text'; overlay.style.cssText = 'position:absolute;bottom:24px;left:24px;right:24px;font-family:var(--font-display);font-weight:800;font-size:36px;text-shadow:0 3px 12px rgba(0,0,0,.8);-webkit-text-stroke:1.5px #000;'; canvas.appendChild(overlay); }
+  overlay.textContent = text; overlay.style.color = color;
+  showToast('Preview updated — export renders this as a real 1280×720 JPG.', 'success');
+});
+</script>
+</body></html>

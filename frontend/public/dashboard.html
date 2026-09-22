@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dashboard — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Dashboard');
+content.innerHTML = `
+  <h2 style="font-size:22px;margin-bottom:20px;" id="greeting">${timeGreeting()}, Creator 👋</h2>
+  <div class="grid grid--stats mb-16" id="stats-grid">
+    ${Array(4).fill('<div class="card skeleton" style="height:80px;"></div>').join('')}
+  </div>
+  <div class="hero-card mt-24">
+    <div>
+      <h2>Turn long videos into viral short-form content</h2>
+      <p>Upload a video or paste a link — Vidzly's AI finds your best moments automatically.</p>
+      <a href="/create.html" class="btn-primary mt-16" style="background:#fff;color:var(--accent);">Create new clip</a>
+    </div>
+  </div>
+
+  <div class="flex items-center justify-between mt-24 mb-16">
+    <h3 class="section-title" style="margin:0;">Recent Projects</h3>
+    <a href="/projects.html" class="text-sm" style="color:var(--accent-3);">View all →</a>
+  </div>
+  <div class="grid grid--projects" id="recent-projects">
+    ${Array(3).fill('<div class="skeleton skeleton-card"></div>').join('')}
+  </div>
+
+  <h3 class="section-title mt-24">Quick Actions</h3>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));" id="quick-actions">
+    ${quickAction('create', 'Upload Video', '/create.html?tab=upload')}
+    ${quickAction('repurpose', 'Paste Link', '/create.html?tab=url')}
+    ${quickAction('clips', 'AI Clips', '/clips.html')}
+    ${quickAction('script', 'AI Script', '/tool-script.html')}
+    ${quickAction('thumbnail', 'Thumbnail', '/tool-thumbnail.html')}
+  </div>
+
+  <h3 class="section-title mt-24">Recent Activity</h3>
+  <div class="card" id="activity-panel"><p class="text-secondary text-sm">Loading…</p></div>
+`;
+
+function quickAction(icon, label, href) {
+  return `<a href="${href}" class="card card--hover flex flex-col items-center gap-8" style="text-align:center;padding:18px 10px;">
+    <div style="width:38px;height:38px;border-radius:10px;background:var(--gradient-brand-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);">${ICONS[icon]}</div>
+    <span class="text-sm font-semibold">${label}</span>
+  </a>`;
+}
+
+async function loadDashboard() {
+  try {
+    const [{ projects }, { clipsCreated, exportCount, avgClipLength }] = await Promise.all([
+      Api.get('/api/projects'),
+      Api.get('/api/analytics'),
+    ]);
+
+    const totalDuration = projects.reduce((s, p) => s + (p.durationSec || 0), 0);
+    document.getElementById('stats-grid').innerHTML = `
+      ${statCard('Total Projects', projects.length)}
+      ${statCard('Clips Created', clipsCreated)}
+      ${statCard('Videos Processed', projects.filter(p => p.status === 'ready').length)}
+      ${statCard('Storage Used', formatDuration(totalDuration) + ' total')}
+    `;
+
+    const recentEl = document.getElementById('recent-projects');
+    if (projects.length === 0) {
+      recentEl.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+        <h3>Your workspace is empty</h3><p>Upload your first video to let AI find the best moments.</p>
+        <a href="/create.html" class="btn-primary mt-8">Create your first project</a>
+      </div>`;
+    } else {
+      recentEl.innerHTML = projects.slice(0, 6).map(projectCardHtml).join('');
+      wireProjectCards(recentEl);
+    }
+
+    document.getElementById('activity-panel').innerHTML = projects.length
+      ? projects.slice(0, 4).map(p => `<div class="flex items-center justify-between" style="padding:10px 0;border-bottom:1px solid var(--border-subtle);"><span class="text-sm">${statusVerb(p.status)} <b>${escapeHtml(p.name)}</b></span><span class="text-muted text-sm">${formatDate(p.updatedAt || p.createdAt)}</span></div>`).join('')
+      : '<p class="text-secondary text-sm">No activity yet — create your first project to get started.</p>';
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function statCard(label, value) {
+  return `<div class="card stat-card"><span class="stat-card__label">${label}</span><span class="stat-card__value">${value}</span></div>`;
+}
+function statusVerb(status) {
+  return { ready: '✅ Finished processing', processing: '⏳ Processing', uploaded: '📤 Uploaded', failed: '⚠️ Failed processing' }[status] || status;
+}
+function projectCardHtml(p) {
+  return `<div class="project-card" data-id="${p.id}">
+    <div class="project-card__thumb">${p.thumbnail ? `<img src="${p.thumbnail}" alt="" />` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);">' + ICONS.clips + '</div>'}
+      <span class="project-card__duration">${formatDuration(p.durationSec)}</span></div>
+    <div class="project-card__title">${escapeHtml(p.name)}</div>
+    <div class="project-card__meta"><span class="chip chip--${p.status === 'ready' ? 'success' : p.status === 'failed' ? 'warning' : 'muted'}">${p.status}</span><span>${formatDate(p.createdAt)}</span></div>
+  </div>`;
+}
+function wireProjectCards(container) {
+  container.querySelectorAll('.project-card').forEach(el => el.addEventListener('click', () => { location.href = `/clips.html?project=${el.dataset.id}`; }));
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

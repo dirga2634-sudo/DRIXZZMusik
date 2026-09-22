@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Processing — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Processing');
+const STAGES = [
+  { key: 'extracting_audio', label: 'Extracting audio' },
+  { key: 'transcribing', label: 'Transcribing' },
+  { key: 'finding_highlights', label: 'Finding highlights' },
+  { key: 'generating_clips', label: 'Generating clips' },
+  { key: 'done', label: 'Rendering complete' },
+];
+
+content.innerHTML = `
+  <div style="max-width:460px;margin:60px auto 0;text-align:center;">
+    <div class="skeleton" style="width:64px;height:64px;border-radius:16px;margin:0 auto 24px;"></div>
+    <h2 style="font-size:19px;margin-bottom:6px;" id="proc-title">Processing your video…</h2>
+    <p class="text-secondary text-sm mb-24" id="proc-sub">This runs real AI + FFmpeg — usually takes under a minute.</p>
+    <div class="progress-steps" id="progress-steps">
+      ${STAGES.map(s => `<div class="progress-step" data-key="${s.key}"><div class="progress-step__dot"></div><span class="progress-step__label">${s.label}</span></div>`).join('')}
+    </div>
+  </div>
+`;
+
+const params = new URLSearchParams(location.search);
+const projectId = params.get('project');
+if (!projectId) { location.href = '/create.html'; }
+
+function setStage(stageKey) {
+  const idx = STAGES.findIndex(s => s.key === stageKey);
+  STAGES.forEach((s, i) => {
+    const el = document.querySelector(`.progress-step[data-key="${s.key}"]`);
+    el.classList.toggle('is-done', i < idx || stageKey === 'done');
+    el.classList.toggle('is-active', i === idx && stageKey !== 'done');
+  });
+}
+
+async function poll() {
+  try {
+    const { stage, projectStatus } = await Api.get(`/api/projects/${projectId}/process-status`);
+    if (stage && stage.startsWith('failed')) {
+      document.getElementById('proc-title').textContent = 'Processing failed';
+      document.getElementById('proc-sub').innerHTML = `<span style="color:var(--danger);">${escapeHtml(stage.replace('failed:', ''))}</span>`;
+      showToast('Processing failed — check details above.', 'error');
+      return;
+    }
+    setStage(stage || 'queued');
+    if (projectStatus === 'ready' || stage === 'done') {
+      setStage('done');
+      document.getElementById('proc-title').textContent = 'All done! 🎉';
+      document.getElementById('proc-sub').textContent = 'Redirecting to your clips…';
+      setTimeout(() => { location.href = `/clips.html?project=${projectId}`; }, 900);
+      return;
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+  setTimeout(poll, 1800);
+}
+
+async function start() {
+  try {
+    await Api.post(`/api/projects/${projectId}/process`);
+  } catch (err) {
+    if (!String(err.message).includes('processing')) return showToast(err.message, 'error');
+  }
+  poll();
+}
+start();
+</script>
+</body>
+</html>

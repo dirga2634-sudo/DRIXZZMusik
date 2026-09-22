@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign up — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-card__logo"><svg viewBox="0 0 48 48" width="46" height="46"><defs><linearGradient id="lg3" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs><rect x="1" y="1" width="46" height="46" rx="14" fill="url(#lg3)"/><path d="M17 15 L24 33 L31 15" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <h1>Create your account</h1>
+    <p class="auth-card__sub">Start turning videos into clips, free</p>
+    <form id="register-form">
+      <div class="field-group"><label class="field-label">Name</label><input type="text" id="name" class="text-input" required autocomplete="name" /></div>
+      <div class="field-group"><label class="field-label">Email</label><input type="email" id="email" class="text-input" required autocomplete="email" /></div>
+      <div class="field-group"><label class="field-label">Password</label><input type="password" id="password" class="text-input" required minlength="6" autocomplete="new-password" /></div>
+      <button type="submit" class="btn-primary btn-block" id="btn-submit">Create account</button>
+    </form>
+    <div class="auth-divider">or</div>
+    <button class="btn-secondary btn-block" id="btn-demo">Continue with Demo Mode</button>
+    <p class="text-sm text-muted mt-16" style="text-align:center;">Already have an account? <a href="/login.html" style="color:var(--accent-3);">Log in</a></p>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const { token } = await Api.post('/api/auth/register', { name: document.getElementById('name').value, email: document.getElementById('email').value, password: document.getElementById('password').value });
+    Auth.setToken(token);
+    location.href = '/dashboard.html';
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled = false; btn.textContent = 'Create account';
+  }
+});
+document.getElementById('btn-demo').addEventListener('click', async () => {
+  try { const { token } = await Api.post('/api/auth/demo'); Auth.setToken(token); location.href = '/dashboard.html'; }
+  catch (err) { showToast(err.message, 'error'); }
+});
+</script>
+</body>
+</html>

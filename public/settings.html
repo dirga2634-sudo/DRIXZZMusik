@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Settings — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Settings');
+content.innerHTML = `
+  <div style="max-width:640px;display:flex;flex-direction:column;gap:20px;">
+    <div class="card"><div class="section-title">Account</div>
+      <div class="field-group"><label class="field-label">Name</label><input class="text-input" id="s-name" /></div>
+      <div class="field-group"><label class="field-label">Email</label><input class="text-input" id="s-email" disabled /></div>
+    </div>
+    <div class="card"><div class="section-title">Appearance</div>
+      <div class="flex items-center justify-between"><span class="text-sm">Theme</span><span class="chip chip--muted">Dark (only, for now)</span></div>
+    </div>
+    <div class="card"><div class="section-title">Language</div>
+      <select class="select-input"><option>Indonesian</option><option>English</option></select>
+    </div>
+    <div class="card"><div class="section-title">Notifications</div>
+      <div class="flex items-center justify-between mb-8"><span class="text-sm">Processing complete</span><input type="checkbox" checked /></div>
+      <div class="flex items-center justify-between"><span class="text-sm">Weekly summary</span><input type="checkbox" /></div>
+    </div>
+    <div class="card"><div class="section-title">AI Settings</div>
+      <p class="text-secondary text-sm mb-8" id="ai-status">Checking AI provider status…</p>
+      <p class="text-muted text-sm">Configure API keys via server .env — never exposed to the browser. See README "AI Setup".</p>
+    </div>
+    <div class="card"><div class="section-title">Storage</div>
+      <p class="text-secondary text-sm">Videos and renders are stored locally in <code>backend/uploads</code> and <code>backend/exports</code>. Swap to S3-compatible storage for production — see README.</p>
+    </div>
+    <div class="card"><div class="section-title">Billing</div>
+      <div class="chip chip--gradient">Free plan — Vidzly is self-hosted, no billing configured.</div>
+    </div>
+  </div>
+`;
+Api.get('/api/auth/me').then(({ user }) => { document.getElementById('s-name').value = user.name; document.getElementById('s-email').value = user.email; });
+Api.get('/api/ai/status').then(({ configured }) => { document.getElementById('ai-status').innerHTML = configured ? '✅ AI provider connected — real AI features active.' : '⚠️ No AI provider configured — running in Demo Mode for AI features.'; });
+</script>
+</body></html>

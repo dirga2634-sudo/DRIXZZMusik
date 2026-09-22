@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Captions — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('AI Captions');
+content.innerHTML = `<div class="grid grid--2col" style="align-items:start;">
+  <div class="card">
+    <div class="field-group"><label class="field-label">What's your video about?</label><textarea class="textarea-input" id="topic" placeholder="e.g. Unboxing my new camera setup"></textarea></div>
+    <button class="btn-primary btn-block" id="btn-generate">✨ Generate titles, captions & hashtags</button>
+  </div>
+  <div class="card" id="result" style="min-height:200px;"><p class="text-secondary text-sm">Results will appear here.</p></div>
+</div>`;
+document.getElementById('btn-generate').addEventListener('click', async () => {
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) return showToast('Enter a topic first.', 'error');
+  const btn = document.getElementById('btn-generate'); btn.disabled = true; btn.textContent = 'Generating…';
+  const result = document.getElementById('result'); result.innerHTML = '<div class="skeleton" style="height:160px;"></div>';
+  try {
+    const [titles, hashtags] = await Promise.all([Api.post('/api/ai/titles', { topic }), Api.post('/api/ai/hashtags', { topic })]);
+    result.innerHTML = section('YouTube Titles', titles.youtubeTitles) + section('Shorts/TikTok Titles', titles.shortsTitles) + section('Instagram Captions', titles.instagramCaptions) + section('Hashtags', hashtags.hashtags);
+  } catch (err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '✨ Generate titles, captions & hashtags'; }
+});
+function section(title, items) {
+  return `<div class="mb-16"><div class="text-muted text-sm font-semibold mb-8">${title}</div>${(items||[]).map(t => `<div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border-subtle);"><span class="text-sm">${escapeHtml(t)}</span><button class="icon-btn" style="width:26px;height:26px;" onclick="navigator.clipboard.writeText('${escapeHtml(t).replace(/'/g,"\\\\'")}');showToast('Copied','success')">📋</button></div>`).join('')}</div>`;
+}
+</script>
+</body></html>

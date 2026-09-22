@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Templates — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Templates');
+content.innerHTML = `<div class="grid grid--templates" id="tpl-grid">${Array(6).fill('<div class="skeleton skeleton-card"></div>').join('')}</div>`;
+Api.get('/api/templates').then(({ templates }) => {
+  document.getElementById('tpl-grid').innerHTML = templates.map(t => `
+    <div class="card card--hover">
+      <div style="aspect-ratio:16/10;background:var(--gradient-brand-soft);border-radius:12px;margin-bottom:12px;display:flex;align-items:center;justify-content:center;font-size:32px;">🎬</div>
+      <div class="font-semibold">${escapeHtml(t.name)}</div>
+      <p class="text-secondary text-sm mt-8">${escapeHtml(t.description)}</p>
+      <button class="btn-secondary btn-block mt-16" onclick="showToast('Template \\'${escapeHtml(t.name)}\\' applied to new project.', 'success')">Use template</button>
+    </div>
+  `).join('');
+}).catch(err => showToast(err.message, 'error'));
+</script>
+</body></html>

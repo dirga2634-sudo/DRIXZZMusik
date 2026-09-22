@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Create — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('Create');
+content.innerHTML = `
+  <div style="max-width:640px;margin:0 auto;">
+    <div class="upload-tabs">
+      <button data-tab="upload" class="is-active">Upload Video</button>
+      <button data-tab="url">Paste Video Link</button>
+      <button data-tab="record">Record</button>
+    </div>
+
+    <div id="tab-upload">
+      <div class="dropzone" id="dropzone">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3 style="font-size:16px;margin-bottom:6px;">Drop your video here</h3>
+        <p class="text-secondary text-sm">or click to browse — MP4, MOV, WebM up to 200MB</p>
+        <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm" hidden />
+      </div>
+      <div id="upload-progress" class="mt-16" hidden>
+        <div class="flex justify-between text-sm mb-8"><span id="upload-filename"></span><span id="upload-percent">0%</span></div>
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="upload-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div id="tab-url" hidden>
+      <div class="field-group">
+        <input type="text" id="url-input" class="text-input" placeholder="Paste YouTube, TikTok, Instagram, Twitch or video URL..." />
+      </div>
+      <button class="btn-primary btn-block" id="btn-validate-url">Validate link</button>
+      <div id="url-preview" class="card mt-16" hidden></div>
+    </div>
+
+    <div id="tab-record" hidden>
+      <div class="empty-state">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
+        <h3>Screen/webcam recording</h3>
+        <p>Browser recording needs camera/mic permission — grant access to start.</p>
+        <button class="btn-primary mt-8" id="btn-start-record">Enable camera & start</button>
+      </div>
+    </div>
+  </div>
+`;
+
+// ---- Tabs ----
+content.querySelectorAll('.upload-tabs button').forEach(btn => btn.addEventListener('click', () => {
+  content.querySelectorAll('.upload-tabs button').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  ['upload', 'url', 'record'].forEach(t => { document.getElementById('tab-' + t).hidden = t !== btn.dataset.tab; });
+}));
+const params = new URLSearchParams(location.search);
+if (params.get('tab') === 'url') content.querySelector('[data-tab="url"]').click();
+
+// ---- Upload ----
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+dropzone.addEventListener('click', () => fileInput.click());
+['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add('is-dragover'); }));
+['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.remove('is-dragover'); }));
+dropzone.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+const ALLOWED = ['video/mp4', 'video/quicktime', 'video/webm'];
+const MAX_BYTES = 200 * 1024 * 1024;
+
+function handleFile(file) {
+  if (!ALLOWED.includes(file.type)) return showToast(`Format "${file.type || 'unknown'}" tidak didukung. Gunakan MP4, MOV, atau WebM.`, 'error');
+  if (file.size > MAX_BYTES) return showToast(`File melebihi batas ${MAX_BYTES / 1024 / 1024}MB.`, 'error');
+
+  const progressEl = document.getElementById('upload-progress');
+  const bar = document.getElementById('upload-bar');
+  const percentEl = document.getElementById('upload-percent');
+  document.getElementById('upload-filename').textContent = file.name;
+  progressEl.hidden = false;
+  dropzone.style.opacity = '0.5'; dropzone.style.pointerEvents = 'none';
+
+  const reader = new FileReader();
+  reader.onprogress = (e) => { if (e.lengthComputable) { const pct = Math.round((e.loaded / e.total) * 60); bar.style.width = pct + '%'; percentEl.textContent = pct + '%'; } };
+  reader.onload = async () => {
+    bar.style.width = '65%'; percentEl.textContent = 'Uploading…';
+    try {
+      const base64 = reader.result.split(',')[1];
+      const { project } = await Api.post('/api/projects/upload', { name: file.name.replace(/\.[^.]+$/, ''), mime: file.type, dataBase64: base64 });
+      bar.style.width = '100%'; percentEl.textContent = '100%';
+      showToast('Upload berhasil!', 'success');
+      setTimeout(() => { location.href = `/processing.html?project=${project.id}`; }, 400);
+    } catch (err) {
+      showToast(err.message, 'error');
+      progressEl.hidden = true; dropzone.style.opacity = '1'; dropzone.style.pointerEvents = 'auto';
+    }
+  };
+  reader.onerror = () => showToast('Gagal membaca file.', 'error');
+  reader.readAsDataURL(file);
+}
+
+// ---- URL import ----
+document.getElementById('btn-validate-url').addEventListener('click', async () => {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return showToast('Masukkan URL dulu.', 'error');
+  const btn = document.getElementById('btn-validate-url');
+  btn.disabled = true; btn.textContent = 'Validating…';
+  const previewEl = document.getElementById('url-preview');
+  try {
+    const data = await Api.post('/api/projects/import-url', { url });
+    previewEl.hidden = false;
+    previewEl.innerHTML = `<p class="font-semibold">${escapeHtml(data.title || 'Video file')}</p><p class="text-secondary text-sm mt-8">${escapeHtml(data.previewNote || '')}</p><button class="btn-primary mt-16" id="btn-do-import">Import</button>`;
+    document.getElementById('btn-do-import').addEventListener('click', () => showToast('Import file langsung akan segera diproses seperti upload biasa.', 'info'));
+  } catch (err) {
+    previewEl.hidden = false;
+    previewEl.innerHTML = `<p style="color:var(--danger);">⚠️ ${escapeHtml(err.message)}</p>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Validate link';
+  }
+});
+
+document.getElementById('btn-start-record').addEventListener('click', async () => {
+  try {
+    await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    showToast('Kamera aktif — perekaman langsung akan tampil di sini (MVP: gunakan Upload Video setelah rekam via aplikasi lain).', 'info');
+  } catch (err) {
+    showToast('Akses kamera/mic ditolak atau tidak tersedia di browser ini.', 'error');
+  }
+});
+</script>
+</body>
+</html>

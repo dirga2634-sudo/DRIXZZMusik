@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>AI Script — Vidzly</title><meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" /><link rel="stylesheet" href="/css/style.css" /></head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('AI Script');
+content.innerHTML = `<div class="grid grid--2col" style="align-items:start;">
+  <div class="card">
+    <div class="field-group"><label class="field-label">Topic</label><textarea class="textarea-input" id="topic" placeholder="e.g. 5 productivity tips for remote workers"></textarea></div>
+    <div class="field-group"><label class="field-label">Tone</label><select class="select-input" id="tone"><option value="casual">Casual</option><option value="educational">Educational</option><option value="funny">Funny</option><option value="storytelling">Storytelling</option><option value="news">News</option></select></div>
+    <button class="btn-primary btn-block" id="btn-generate">✨ Generate script</button>
+  </div>
+  <div class="card" id="result" style="min-height:200px;"><p class="text-secondary text-sm">Your script will appear here.</p></div>
+</div>`;
+document.getElementById('btn-generate').addEventListener('click', async () => {
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) return showToast('Enter a topic first.', 'error');
+  const btn = document.getElementById('btn-generate'); btn.disabled = true; btn.textContent = 'Generating…';
+  const result = document.getElementById('result'); result.innerHTML = '<div class="skeleton" style="height:160px;"></div>';
+  try {
+    const s = await Api.post('/api/ai/script', { topic, tone: document.getElementById('tone').value });
+    result.innerHTML = `<div class="mb-16"><div class="text-muted text-sm font-semibold">HOOK</div><p>${escapeHtml(s.hook)}</p></div><div class="mb-16"><div class="text-muted text-sm font-semibold">INTRO</div><p>${escapeHtml(s.introduction)}</p></div><div class="mb-16"><div class="text-muted text-sm font-semibold">MAIN POINTS</div><ul>${s.mainPoints.map(p=>`<li>${escapeHtml(p)}</li>`).join('')}</ul></div><div><div class="text-muted text-sm font-semibold">CTA</div><p>${escapeHtml(s.cta)}</p></div><button class="btn-secondary mt-16" onclick="navigator.clipboard.writeText(this.parentElement.innerText);showToast('Copied!','success')">Copy all</button>`;
+  } catch (err) { showToast(err.message, 'error'); result.innerHTML = '<p class="text-secondary text-sm">Generation failed — try again.</p>'; }
+  finally { btn.disabled = false; btn.textContent = '✨ Generate script'; }
+});
+</script>
+</body></html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Clips — Vidzly</title>
+<meta name="theme-color" content="#0a0a0f" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div id="app-shell"></div>
+<script src="/js/app.js"></script>
+<script>
+const content = requireShell('AI Clips');
+const params = new URLSearchParams(location.search);
+let projectId = params.get('project');
+let allClips = [];
+let activeFilter = 'all';
+
+content.innerHTML = `
+  <div class="flex items-center justify-between mb-16" style="flex-wrap:wrap;gap:10px;">
+    <div>
+      <select id="project-select" class="select-input" style="width:auto;min-width:220px;"></select>
+    </div>
+    <button class="btn-secondary" id="btn-generate-more">✨ Generate more clips</button>
+  </div>
+  <div class="flex gap-8 mb-16" id="filter-chips" style="flex-wrap:wrap;"></div>
+  <div class="grid grid--clips" id="clips-grid">${Array(4).fill('<div class="skeleton skeleton-card"></div>').join('')}</div>
+`;
+
+const FILTERS = [
+  { key: 'all', label: 'All' }, { key: 'best', label: 'Best moments' }, { key: 'trending', label: 'Trending' },
+  { key: 'funny', label: 'Funny' }, { key: 'educational', label: 'Educational' }, { key: 'emotional', label: 'Emotional' },
+];
+document.getElementById('filter-chips').innerHTML = FILTERS.map(f => `<button class="chip chip--${f.key === activeFilter ? 'gradient' : 'muted'}" data-filter="${f.key}" style="cursor:pointer;">${f.label}</button>`).join('');
+document.getElementById('filter-chips').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-filter]'); if (!btn) return;
+  activeFilter = btn.dataset.filter;
+  document.querySelectorAll('#filter-chips .chip').forEach(c => c.className = `chip chip--${c.dataset.filter === activeFilter ? 'gradient' : 'muted'}`);
+  renderClips();
+});
+
+async function loadProjects() {
+  const { projects } = await Api.get('/api/projects');
+  const readyProjects = projects.filter(p => p.status === 'ready');
+  const sel = document.getElementById('project-select');
+  if (readyProjects.length === 0) { sel.innerHTML = '<option>No processed projects yet</option>'; return null; }
+  sel.innerHTML = readyProjects.map(p => `<option value="${p.id}"${p.id === projectId ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+  if (!projectId) projectId = readyProjects[0].id;
+  sel.value = projectId;
+  sel.addEventListener('change', () => { projectId = sel.value; history.replaceState(null, '', `/clips.html?project=${projectId}`); loadClips(); });
+  return projectId;
+}
+
+async function loadClips() {
+  document.getElementById('clips-grid').innerHTML = Array(4).fill('<div class="skeleton skeleton-card"></div>').join('');
+  try {
+    const { clips } = await Api.get(`/api/projects/${projectId}/clips`);
+    allClips = clips;
+    renderClips();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function renderClips() {
+  const list = activeFilter === 'all' ? allClips : allClips.filter(c => c.category === activeFilter);
+  const grid = document.getElementById('clips-grid');
+  if (list.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>No clips in this filter</h3><p>Try a different filter or generate more clips.</p></div>`;
+    return;
+  }
+  grid.innerHTML = list.map(clipCardHtml).join('');
+  wireClipCards();
+}
+
+function scoreClass(score) { return score >= 85 ? 'high' : score >= 65 ? 'mid' : ''; }
+function clipCardHtml(c) {
+  return `<div class="clip-card" data-id="${c.id}">
+    <div class="clip-card__thumb">
+      ${c.thumbnail ? `<img src="${c.thumbnail}" alt="" />` : ''}
+      <span class="clip-card__score clip-card__score--${scoreClass(c.viralScore)}">🔥 ${c.viralScore}</span>
+      <span class="clip-card__duration">${formatDuration(c.duration)}</span>
+    </div>
+    <div class="clip-card__title">${escapeHtml(c.title)}</div>
+    ${c.transcriptPreview ? `<p class="text-muted text-sm" style="overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${escapeHtml(c.transcriptPreview)}</p>` : ''}
+    <div class="clip-card__actions">
+      <button class="btn-secondary" data-action="preview">Preview</button>
+      <button class="btn-secondary" data-action="edit">Edit</button>
+      <button class="btn-primary" data-action="export">Export</button>
+    </div>
+  </div>`;
+}
+
+function wireClipCards() {
+  // Delegated listener sudah dipasang sekali di luar (lihat di bawah), tidak perlu pasang ulang tiap render.
+}
+document.getElementById('clips-grid').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]'); if (!btn) return;
+  const clipEl = btn.closest('.clip-card');
+  const clip = allClips.find(c => c.id === clipEl.dataset.id);
+  if (!clip) return;
+  if (btn.dataset.action === 'edit') return location.href = `/editor.html?clip=${clip.id}&project=${projectId}`;
+  if (btn.dataset.action === 'preview') return openPreview(clip);
+  if (btn.dataset.action === 'export') return doExport(clip, btn);
+});
+
+function openPreview(clip) {
+  let modal = document.getElementById('preview-modal');
+  if (!modal) {
+    modal = document.createElement('div'); modal.id = 'preview-modal'; modal.className = 'modal'; modal.hidden = true;
+    modal.innerHTML = `<div class="modal__backdrop" data-close-modal></div><div class="modal__panel"><div class="modal__header"><h2 id="pv-title"></h2><button class="icon-btn" data-close-modal>✕</button></div><div class="modal__body"><img id="pv-thumb" style="width:100%;border-radius:12px;" /><p class="text-secondary text-sm mt-16" id="pv-transcript"></p></div></div>`;
+    document.body.appendChild(modal);
+  }
+  modal.querySelector('#pv-title').textContent = clip.title;
+  modal.querySelector('#pv-thumb').src = clip.thumbnail;
+  modal.querySelector('#pv-transcript').textContent = clip.transcriptPreview || 'No transcript preview available.';
+  modal.hidden = false;
+}
+
+async function doExport(clip, btn) {
+  btn.disabled = true; btn.textContent = 'Rendering…';
+  try {
+    const result = await Api.post(`/api/clips/${clip.id}/export`, { aspectRatio: clip.aspectRatio || '9:16' });
+    if (result.demo) showToast(result.message, 'info');
+    else { showToast('Export complete!', 'success'); window.open(result.export.path, '_blank'); }
+  } catch (err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Export'; }
+}
+
+document.getElementById('btn-generate-more').addEventListener('click', () => {
+  if (!projectId) return;
+  showToast('Re-running AI highlight detection…', 'info');
+  location.href = `/processing.html?project=${projectId}`;
+});
+
+(async () => { const pid = await loadProjects(); if (pid) loadClips(); else document.getElementById('clips-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>No processed videos yet</h3><a href="/create.html" class="btn-primary mt-8">Upload a video</a></div>`; })();
+</script>
+</body>
+</html>
